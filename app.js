@@ -605,14 +605,14 @@
           '<button class="btn btn-sm" ' + (out ? 'disabled' : '') + ' data-act="add-cart" data-id="' + p.id + '">' + (out ? 'Indisponível' : 'Adicionar') + '</button></div></div></article>';
       }).join('') + '</div></section>';
 
-    h += '<section class="section container"><div class="panel" style="display:grid;grid-template-columns:1.2fr 1fr"><div class="panel-pad">' +
+    h += '<section class="section container"><div class="panel info-panel"><div class="panel-pad info-schedule">' +
       '<div class="eyebrow">' + ic('clock', 15) + ' Horário e Atendimento</div><h2>Quando Estamos Abertos</h2><p class="muted small">Atendimento com hora marcada e encaixes sujeitos à disponibilidade da cadeira.</p><div class="schedule-list mt-3">' +
       s.schedule.map(function (d) { return '<div class="' + (d.dayIndex === new Date().getDay() ? 'today' : '') + '"><span>' + esc(d.dayLabel) + (d.dayIndex === new Date().getDay() ? ' (Hoje)' : '') + '</span><span class="mono">' + (d.closed ? 'Fechado' : esc(d.open + ' – ' + d.close)) + '</span></div>'; }).join('') +
-      '</div></div><div class="panel-pad" style="background:var(--bg-2)"><div class="eyebrow">Localização & Contato</div><h3>Visite a Barbearia Edyk</h3>' +
-      '<div class="mt-3" style="display:grid;gap:16px;font-size:13px"><div class="row"><span class="gold">' + ic('pin', 18) + '</span><div><div>' + esc(s.address) + '</div><div class="muted">' + esc(s.neighborhood) + '</div></div></div>' +
+      '</div></div><div class="panel-pad info-contact"><div class="eyebrow">Localização & Contato</div><h3>Visite a Barbearia Edyk</h3>' +
+      '<div class="info-contact-list"><div class="row"><span class="gold">' + ic('pin', 18) + '</span><div><div>' + esc(s.address) + '</div><div class="muted">' + esc(s.neighborhood) + '</div></div></div>' +
       '<div class="row"><span class="gold">' + ic('phone', 18) + '</span><span class="mono">' + esc(s.phone) + '</span></div>' +
       '<div class="row"><span class="gold">' + ic('instagram', 18) + '</span><a href="https://instagram.com/' + esc(s.instagramHandle.replace(/^@/, '')) + '" target="_blank" rel="noopener noreferrer">' + esc(s.instagramHandle) + '</a></div></div>' +
-      '<div class="mt-4" style="display:grid;gap:10px"><a class="btn btn-primary btn-lg btn-block" style="background:#25D366;border-color:#25D366;color:#06251a" href="' + esc(s.whatsappUrl) + '" target="_blank" rel="noopener noreferrer">Chamar no WhatsApp</a>' +
+      '<div class="info-actions"><a class="btn btn-primary btn-lg btn-block btn-whatsapp" href="' + esc(s.whatsappUrl) + '" target="_blank" rel="noopener noreferrer">Chamar no WhatsApp</a>' +
       '<button class="btn btn-lg btn-block" data-act="book-start">Agendar Horário Online</button></div></div></div></section>';
     return h;
   }
