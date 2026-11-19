@@ -15,6 +15,22 @@ python server.py 3000     # porta personalizada
 
 A API opcional `GET/POST /api/state` grava o estado em `data/store.json`. Sem ela, o app usa `localStorage` normalmente.
 
+## Deploy no Vercel
+
+O projeto é 100% estático e já contém o `vercel.json` necessário. Basta importar o repositório no Vercel e deployar:
+
+1. **Add New → Project** e selecione este repositório.
+2. Em **Build & Development Settings**, confirme:
+   - **Framework Preset:** `Other`
+   - **Build Command:** vazio
+   - **Output Directory:** `.` (raiz)
+   - **Install Command:** vazio
+   
+   Esses valores já vêm do `vercel.json`, mas conferir evita que o Vercel use a pasta `public/` como output (o que causaria 404, já que o `index.html` está na raiz).
+3. Clique em **Deploy**. Não é preciso `package.json`, `npm install` nem variáveis de ambiente.
+
+No Vercel a persistência é feita apenas no `localStorage` do navegador — a API Python (`server.py`) não é implantada, e o app detecta isso automaticamente. Para persistência compartilhada entre dispositivos, será necessário trocar o `localStorage` por um serviço de banco de dados.
+
 ## Arquivos
 
 | Arquivo | Função |
@@ -22,8 +38,9 @@ A API opcional `GET/POST /api/state` grava o estado em `data/store.json`. Sem el
 | `index.html` | Estrutura da aplicação e emblema SVG reutilizável |
 | `styles.css` | Tema escuro, layout responsivo, componentes e animações |
 | `app.js` | Toda a lógica: estado, rotas por hash, agendamentos, loja, fidelidade e painel admin |
-| `server.py` | Servidor estático + API JSON de persistência |
-| `assets/` | Imagens e ícone (paths relativos, funcionam via `file://`) |
+| `server.py` | Servidor estático + API JSON de persistência (somente local) |
+| `vercel.json` | Configuração de deploy estático (framework "Other", output na raiz) |
+| `assets/` | Imagens e ícones PWA (paths relativos, funcionam via `file://`) |
 
 ## Funcionalidades
 

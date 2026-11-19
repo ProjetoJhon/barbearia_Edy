@@ -232,7 +232,9 @@
   }
 
   function initRemote() {
+    /* Em deploy estático (ex.: Vercel) não existe a API Python: usa localStorage. */
     if (!/^https?:$/.test(location.protocol)) return;
+    if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
     fetch('api/state', { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
