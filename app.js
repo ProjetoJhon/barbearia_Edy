@@ -11,8 +11,8 @@
   var IMG = {
     hero: 'assets/images/hero.jpg',
     edy: 'assets/images/barber-edy.jpg',
-    kaue: 'assets/images/barber-kaue.jpg',
-    ricardo: 'assets/images/barber-ricardo.jpg',
+    elenco: 'assets/images/elenco.jpg',
+    matheus: 'assets/images/barber-matheus.jpg',
     pomade: 'assets/images/product-pomade.jpg',
     oil: 'assets/images/product-beard-oil.jpg',
     shampoo: 'assets/images/product-shampoo.jpg',
@@ -44,8 +44,7 @@
     ],
     barbers: [
       { id: 'barber-1', name: 'Edy Oliveira', specialty: 'Fundador · Master Fade & Visagismo', bio: 'Mais de 10 anos definindo o padrão de precisão da Barbearia Edyk. Especialista em degradê navalhado e consultoria de estilo.', photo: IMG.edy, rating: 4.98, completedCuts: 1420, workDays: [2, 3, 4, 5, 6], startHour: '09:00', endHour: '20:00', active: true },
-      { id: 'barber-2', name: 'Kauê Mendes', specialty: 'Skin Fade, Taper & Freestyle', bio: 'Referência em cortes urbanos, low fade, crop texturizado e desenhos precisos na navalha com acabamento limpo.', photo: IMG.kaue, rating: 4.95, completedCuts: 890, workDays: [1, 2, 3, 4, 5, 6], startHour: '10:00', endHour: '20:00', active: true },
-      { id: 'barber-3', name: 'Ricardo Silva', specialty: 'Barba Terapia & Corte Clássico', bio: 'Especialista em barboterapia com toalha quente, navalha tradicional e cortes clássicos executados na tesoura.', photo: IMG.ricardo, rating: 4.97, completedCuts: 1105, workDays: [2, 3, 4, 5, 6, 0], startHour: '09:00', endHour: '19:00', active: true }
+      { id: 'barber-2', name: 'Matheus Silva', specialty: 'Barba Terapia & Corte Clássico', bio: 'Especialista em barboterapia com toalha quente, navalha tradicional e cortes clássicos executados na tesoura.', photo: IMG.matheus, rating: 4.97, completedCuts: 1105, workDays: [2, 3, 4, 5, 6, 0], startHour: '09:00', endHour: '19:00', active: true }
     ],
     products: [
       { id: 'prod-1', name: 'Pomada Matte Black Gold 120g', description: 'Fixação alta com efeito seco natural e zero resíduos. Fragrância amadeirada exclusiva EDY-K.', category: 'Pomadas', price: 68, promoPrice: 54.9, stock: 14, image: IMG.pomade, active: true, featured: true },
