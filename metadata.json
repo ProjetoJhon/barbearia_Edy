@@ -1,0 +1,8 @@
+{
+  "name": "EDY-K Barbershop",
+  "description": "Aplicativo oficial da Barbearia Edyk (EDY-K Barbershop) — Agendamento online de cortes e barba, loja de produtos masculinos e painel administrativo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
