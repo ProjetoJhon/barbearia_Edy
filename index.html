@@ -5,26 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>EDY-K Barbershop | Agendamento Online &amp; Loja</title>
     <meta name="description" content="Barbearia Edyk (EDY-K Barbershop) — Agende seu horário online com nosso elenco, compre produtos premium de barbearia e pague via Pix ou Cartão." />
-    <meta property="og:title" content="EDY-K Barbershop | Agendamento Online &amp; Loja" />
-    <meta property="og:description" content="Barbearia Edyk — Cortes de precisão, barba terapia, produtos exclusivos e agendamento rápido." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#0D0E10" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="EDY-K" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/svg+xml" href="assets/icon.svg" />
+    <link rel="apple-touch-icon" href="assets/icon.svg" />
+    <link rel="manifest" href="manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
   </head>
-  <body class="bg-[#0D0E10] text-white antialiased selection:bg-[#E2B743] selection:text-[#0D0E10]">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+  <body>
+    <!-- Emblema reutilizável (mesmo SVG do projeto original, agora sem React) -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="edyk-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#FFF0A8" />
+          <stop offset="30%" stop-color="#F4D013" />
+          <stop offset="65%" stop-color="#E2B743" />
+          <stop offset="100%" stop-color="#A67B1B" />
+        </linearGradient>
+        <linearGradient id="edyk-gold-dark" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#E2B743" />
+          <stop offset="100%" stop-color="#8C6614" />
+        </linearGradient>
+        <radialGradient id="edyk-obsidian" cx="50%" cy="35%" r="65%">
+          <stop offset="0%" stop-color="#1D1F24" />
+          <stop offset="100%" stop-color="#08090B" />
+        </radialGradient>
+        <path id="edyk-top-arc" d="M 38,102 A 62,62 0 0,1 162,102" />
+        <path id="edyk-bottom-arc" d="M 34,104 A 66,66 0 0,0 166,104" />
+      </defs>
+      <symbol id="edyk-logo" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="97" fill="url(#edyk-obsidian)" stroke="#2C2E33" stroke-width="2" />
+        <circle cx="100" cy="100" r="91" fill="none" stroke="url(#edyk-gold)" stroke-width="2.8" />
+        <circle cx="100" cy="100" r="84" fill="none" stroke="url(#edyk-gold-dark)" stroke-width="1" opacity="0.85" />
+        <circle cx="100" cy="100" r="78" fill="none" stroke="url(#edyk-gold)" stroke-width="1.4" stroke-dasharray="6 4 2 4" opacity="0.75" />
+        <path d="M22 86 C16 95, 16 105, 22 114 M178 86 C184 95, 184 105, 178 114" stroke="url(#edyk-gold)" stroke-width="2.2" stroke-linecap="round" />
+        <circle cx="24" cy="100" r="2.2" fill="#F4D013" />
+        <circle cx="176" cy="100" r="2.2" fill="#F4D013" />
+        <text fill="url(#edyk-gold)" font-size="11.5" font-weight="700" font-family="Oswald, sans-serif" letter-spacing="3.4">
+          <textPath href="#edyk-top-arc" startOffset="50%" text-anchor="middle">BARBER</textPath>
+        </text>
+        <g transform="translate(100, 62)">
+          <path d="M-19 10 L-22 -5 L-10 3 L0 -11 L10 3 L22 -5 L19 10 Z" fill="url(#edyk-gold)" stroke="#0D0E10" stroke-width="0.8" />
+          <rect x="-19" y="11" width="38" height="3.2" rx="1.5" fill="url(#edyk-gold)" />
+          <circle cx="-22" cy="-7" r="2" fill="#FFF0A8" />
+          <circle cx="0" cy="-13" r="2.5" fill="#FFF0A8" />
+          <circle cx="22" cy="-7" r="2" fill="#FFF0A8" />
+        </g>
+        <path d="M26 83 Q100 73 174 83 L167 121 Q100 131 33 121 Z" fill="#0D0E10" stroke="url(#edyk-gold)" stroke-width="2.4" />
+        <path d="M32 87 Q100 78 168 87" stroke="url(#edyk-gold-dark)" stroke-width="0.8" opacity="0.7" />
+        <path d="M37 117 Q100 125 163 117" stroke="url(#edyk-gold-dark)" stroke-width="0.8" opacity="0.7" />
+        <text x="100" y="112" text-anchor="middle" font-family="Oswald, Impact, sans-serif" font-weight="700" font-size="37" letter-spacing="2.5" fill="url(#edyk-gold)">EDY-K</text>
+        <g transform="translate(100, 141)" stroke="url(#edyk-gold)" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M-18 -9 L14 9 L19 6 L-12 -11 Z" fill="url(#edyk-gold)" stroke="none" />
+          <line x1="16" y1="-10" x2="-13" y2="9" stroke-width="2.6" />
+          <line x1="-10" y1="-8" x2="12" y2="10" stroke-width="2" opacity="0.85" />
+          <circle cx="-17" cy="11" r="4.2" fill="none" stroke-width="1.9" />
+          <circle cx="17" cy="11" r="4.2" fill="none" stroke-width="1.9" />
+          <circle cx="0" cy="0" r="1.8" fill="#0D0E10" stroke="url(#edyk-gold)" stroke-width="1.2" />
+        </g>
+        <text fill="url(#edyk-gold)" font-size="11" font-weight="700" font-family="Oswald, sans-serif" letter-spacing="2.6">
+          <textPath href="#edyk-bottom-arc" startOffset="50%" text-anchor="middle">BARBERSHOP</textPath>
+        </text>
+      </symbol>
+    </svg>
+
+    <div id="notice" class="notice is-hidden"></div>
+    <header id="header" class="site-header"></header>
+    <main id="view" class="app-main"></main>
+    <footer id="footer" class="site-footer"></footer>
+    <nav id="mobile-nav" class="mobile-nav" aria-label="Navegação mobile"></nav>
+    <div id="cart-root"></div>
+    <a id="whatsapp" class="whatsapp-fab" href="https://wa.me/message/X5EVZRC2S7CYE1" target="_blank" rel="noopener noreferrer" aria-label="Falar no WhatsApp">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.26-1.38a9.9 9.9 0 0 0 4.78 1.22h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm0 18.15a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.23 8.23 0 0 1-1.27-4.38c0-4.54 3.7-8.23 8.25-8.23a8.2 8.2 0 0 1 8.24 8.23c0 4.54-3.7 8.24-8.24 8.24Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.16.25-.64.81-.79.98-.14.16-.29.18-.54.06-.25-.12-1.05-.39-2-1.23a7.5 7.5 0 0 1-2.76-2.54c-.2-.35-.02-.53.16-.7.16-.16.35-.4.53-.61.17-.2.23-.35.35-.58.11-.23.06-.42-.03-.59-.08-.17-.56-1.36-.77-1.86-.2-.49-.4-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1s.9 2.44 1.03 2.61c.12.17 1.78 2.72 4.32 3.81.6.26 1.07.42 1.44.54.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.23-.17-.48-.29Z"/></svg>
+    </a>
+    <div id="toasts" class="toast-stack" role="status" aria-live="polite"></div>
+
+    <script src="app.js"></script>
   </body>
 </html>

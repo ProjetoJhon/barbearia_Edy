@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "EDY-K Barbershop",
+  "short_name": "EDY-K",
+  "description": "Agendamento online, elenco de barbeiros e loja oficial da Barbearia Edyk.",
+  "theme_color": "#0D0E10",
+  "background_color": "#0D0E10",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "start_url": "./",
+  "scope": "./",
+  "icons": [
+    { "src": "public/pwa-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "public/pwa-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "public/pwa-maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
