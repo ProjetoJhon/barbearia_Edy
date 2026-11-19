@@ -36,15 +36,15 @@
     ],
     services: [
       { id: 'srv-1', name: 'Corte Degradê (Fade)', description: 'Degradê navalhado ou zero com acabamento preciso na navalha, lavagem e finalização com pomada premium.', price: 55, durationMinutes: 40, category: 'Cabelo', active: true, featured: true },
-      { id: 'srv-2', name: 'Combo Corte + Barba Terapia', description: 'Nosso ritual completo: corte sob medida, modelagem de barba com toalha quente, óleo essencial e massagem facial.', price: 90, durationMinutes: 70, category: 'Combo', active: true, featured: true },
-      { id: 'srv-3', name: 'Barba Terapia na Navalha', description: 'Alinhamento completo com espuma quente, vapor de ozônio, navalha tradicional e bálsamo pós-barba hidratante.', price: 45, durationMinutes: 35, category: 'Barba', active: true, featured: true },
+      { id: 'srv-2', name: 'Combo Corte + Barba', description: 'Nosso ritual completo: corte sob medida, modelagem de barba com toalha quente, óleo essencial e massagem facial.', price: 90, durationMinutes: 70, category: 'Combo', active: true, featured: true },
+      { id: 'srv-3', name: 'Barba  na Navalha', description: 'Alinhamento completo com espuma quente, vapor de ozônio, navalha tradicional e bálsamo pós-barba hidratante.', price: 45, durationMinutes: 35, category: 'Barba', active: true, featured: true },
       { id: 'srv-4', name: 'Corte Social na Tesoura', description: 'Corte clássico executado inteiramente na tesoura, respeitando caimento natural e textura dos fios.', price: 60, durationMinutes: 45, category: 'Cabelo', active: true, featured: true },
       { id: 'srv-5', name: 'Sobrancelha na Navalha', description: 'Limpeza natural e design masculino com precisão de navalha sem perder a expressão original.', price: 20, durationMinutes: 15, category: 'Acabamento', active: true },
       { id: 'srv-6', name: 'Pigmentação & Acabamento Black', description: 'Realce natural para contornos de cabelo e barba com fixação prolongada e acabamento impecável.', price: 40, durationMinutes: 25, category: 'Acabamento', active: true }
     ],
     barbers: [
       { id: 'barber-1', name: 'Edy Oliveira', specialty: 'Fundador · Master Fade & Visagismo', bio: 'Mais de 10 anos definindo o padrão de precisão da Barbearia Edyk. Especialista em degradê navalhado e consultoria de estilo.', photo: IMG.edy, rating: 4.98, completedCuts: 1420, workDays: [2, 3, 4, 5, 6], startHour: '09:00', endHour: '20:00', active: true },
-      { id: 'barber-2', name: 'Matheus Silva', specialty: 'Barba Terapia & Corte Clássico', bio: 'Especialista em barboterapia com toalha quente, navalha tradicional e cortes clássicos executados na tesoura.', photo: IMG.matheus, rating: 4.97, completedCuts: 1105, workDays: [2, 3, 4, 5, 6, 0], startHour: '09:00', endHour: '19:00', active: true }
+      { id: 'barber-2', name: 'Matheus Silva', specialty: 'Barba & Corte Clássico', bio: 'Especialista em barboterapia com toalha quente, navalha tradicional e cortes clássicos executados na tesoura.', photo: IMG.matheus, rating: 4.97, completedCuts: 1105, workDays: [2, 3, 4, 5, 6, 0], startHour: '09:00', endHour: '19:00', active: true }
     ],
     products: [
       { id: 'prod-1', name: 'Pomada Matte Black Gold 120g', description: 'Fixação alta com efeito seco natural e zero resíduos. Fragrância amadeirada exclusiva EDY-K.', category: 'Pomadas', price: 68, promoPrice: 54.9, stock: 14, image: IMG.pomade, active: true, featured: true },
@@ -62,8 +62,8 @@
       phone: '(11) 98254-1469',
       whatsappUrl: 'https://wa.me/message/X5EVZRC2S7CYE1',
       instagramHandle: '@barbearia_edyk',
-      address: 'Av. Engenheiro Armando de Arruda Pereira, 1840',
-      neighborhood: 'Jabaquara · São Paulo - SP',
+      address: 'R. Juiz de Fora, 279 - , 03286-000',
+      neighborhood: 'Vila Ema, São Paulo - SP',
       topNoticeEnabled: true,
       topNoticeText: 'Horários de Sexta e Sábado esgotando rápido — garanta seu corte online com pagamento via Pix.',
       customLogoUrl: '',
@@ -80,26 +80,26 @@
       ]
     },
     appointments: [
-      { id: 'apt-101', userId: 'user-demo-client', clientName: 'Lucas Ferreira', clientPhone: '(11) 97412-8830', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba Terapia', servicePrice: 90, serviceDuration: 70, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(1), time: '15:00', status: 'confirmed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-1) },
+      { id: 'apt-101', userId: 'user-demo-client', clientName: 'Lucas Ferreira', clientPhone: '(11) 97412-8830', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', servicePrice: 90, serviceDuration: 70, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(1), time: '15:00', status: 'confirmed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-1) },
       { id: 'apt-102', userId: 'user-client-2', clientName: 'Matheus Almeida', clientPhone: '(11) 96521-4410', serviceId: 'srv-1', serviceName: 'Corte Degradê (Fade)', servicePrice: 55, serviceDuration: 40, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(0), time: '11:00', status: 'confirmed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-2) },
-      { id: 'apt-103', userId: 'user-client-3', clientName: 'Gabriel Costa', clientPhone: '(11) 98104-2291', serviceId: 'srv-3', serviceName: 'Barba Terapia na Navalha', servicePrice: 45, serviceDuration: 35, barberId: 'barber-3', barberName: 'Ricardo Silva', date: iso(0), time: '14:00', status: 'pending', paymentMethod: 'in_shop', paymentStatus: 'pending', createdAt: iso(-1) },
-      { id: 'apt-104', userId: 'user-client-4', clientName: 'Thiago Nogueira', clientPhone: '(11) 99315-7704', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba Terapia', servicePrice: 90, serviceDuration: 70, barberId: 'barber-2', barberName: 'Kauê Mendes', date: iso(0), time: '16:30', status: 'confirmed', paymentMethod: 'credit_card', paymentStatus: 'paid', installments: 2, createdAt: iso(-1) },
+      { id: 'apt-103', userId: 'user-client-3', clientName: 'Gabriel Costa', clientPhone: '(11) 98104-2291', serviceId: 'srv-3', serviceName: 'Barba  na Navalha', servicePrice: 45, serviceDuration: 35, barberId: 'barber-3', barberName: 'Ricardo Silva', date: iso(0), time: '14:00', status: 'pending', paymentMethod: 'in_shop', paymentStatus: 'pending', createdAt: iso(-1) },
+      { id: 'apt-104', userId: 'user-client-4', clientName: 'Thiago Nogueira', clientPhone: '(11) 99315-7704', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba ', servicePrice: 90, serviceDuration: 70, barberId: 'barber-2', barberName: 'Kauê Mendes', date: iso(0), time: '16:30', status: 'confirmed', paymentMethod: 'credit_card', paymentStatus: 'paid', installments: 2, createdAt: iso(-1) },
       { id: 'apt-105', userId: 'user-demo-client', clientName: 'Lucas Ferreira', clientPhone: '(11) 97412-8830', serviceId: 'srv-1', serviceName: 'Corte Degradê (Fade)', servicePrice: 55, serviceDuration: 40, barberId: 'barber-2', barberName: 'Kauê Mendes', date: iso(-4), time: '18:00', status: 'completed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-6) },
       { id: 'apt-106', userId: 'user-client-2', clientName: 'Matheus Almeida', clientPhone: '(11) 96521-4410', serviceId: 'srv-4', serviceName: 'Corte Social na Tesoura', servicePrice: 60, serviceDuration: 45, barberId: 'barber-3', barberName: 'Ricardo Silva', date: iso(-2), time: '10:30', status: 'completed', paymentMethod: 'credit_card', paymentStatus: 'paid', createdAt: iso(-3) },
-      { id: 'apt-107', userId: 'user-client-3', clientName: 'Gabriel Costa', clientPhone: '(11) 98104-2291', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba Terapia', servicePrice: 90, serviceDuration: 70, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(-1), time: '17:00', status: 'completed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-3) },
+      { id: 'apt-107', userId: 'user-client-3', clientName: 'Gabriel Costa', clientPhone: '(11) 98104-2291', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', servicePrice: 90, serviceDuration: 70, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(-1), time: '17:00', status: 'completed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-3) },
       { id: 'apt-108', userId: 'user-client-4', clientName: 'Thiago Nogueira', clientPhone: '(11) 99315-7704', serviceId: 'srv-1', serviceName: 'Corte Degradê (Fade)', servicePrice: 55, serviceDuration: 40, barberId: 'barber-2', barberName: 'Kauê Mendes', date: iso(-3), time: '15:30', status: 'completed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-5) },
-      { id: 'apt-109', userId: 'user-client-2', clientName: 'Matheus Almeida', clientPhone: '(11) 96521-4410', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba Terapia', servicePrice: 90, serviceDuration: 70, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(-5), time: '13:00', status: 'completed', paymentMethod: 'credit_card', paymentStatus: 'paid', createdAt: iso(-7) }
+      { id: 'apt-109', userId: 'user-client-2', clientName: 'Matheus Almeida', clientPhone: '(11) 96521-4410', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', servicePrice: 90, serviceDuration: 70, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(-5), time: '13:00', status: 'completed', paymentMethod: 'credit_card', paymentStatus: 'paid', createdAt: iso(-7) }
     ],
     orders: [
       { id: 'ord-501', userId: 'user-demo-client', clientName: 'Lucas Ferreira', clientPhone: '(11) 97412-8830', items: [{ productId: 'prod-1', name: 'Pomada Matte Black Gold 120g', price: 54.9, quantity: 1, image: IMG.pomade }, { productId: 'prod-2', name: 'Óleo para Barba Elixir Âmbar 30ml', price: 59.9, quantity: 1, image: IMG.oil }], subtotal: 114.8, deliveryFee: 0, total: 114.8, fulfillment: 'pickup', paymentMethod: 'pix', paymentStatus: 'paid', status: 'ready', createdAt: iso(-1) },
-      { id: 'ord-502', userId: 'user-client-3', clientName: 'Gabriel Costa', clientPhone: '(11) 98104-2291', items: [{ productId: 'prod-4', name: 'Kit Executivo EDY-K Signature', price: 179.9, quantity: 1, image: IMG.kit }], subtotal: 179.9, deliveryFee: 0, total: 179.9, fulfillment: 'delivery', deliveryAddress: 'Rua dos Jequitibás, 412 - Jabaquara, São Paulo', paymentMethod: 'credit_card', paymentStatus: 'paid', installments: 3, status: 'delivered', createdAt: iso(-3) },
+      { id: 'ord-502', userId: 'user-client-3', clientName: 'Gabriel Costa', clientPhone: '(11) 98104-2291', items: [{ productId: 'prod-4', name: 'Kit Executivo EDY-K Signature', price: 179.9, quantity: 1, image: IMG.kit }], subtotal: 179.9, deliveryFee: 0, total: 179.9, fulfillment: 'delivery', deliveryAddress: 'R. Juiz de Fora, 279', paymentMethod: 'credit_card', paymentStatus: 'paid', installments: 3, status: 'delivered', createdAt: iso(-3) },
       { id: 'ord-503', userId: 'user-client-4', clientName: 'Thiago Nogueira', clientPhone: '(11) 99315-7704', items: [{ productId: 'prod-3', name: 'Shampoo Detox Carvão & Mentol 250ml', price: 42.9, quantity: 2, image: IMG.shampoo }], subtotal: 85.8, deliveryFee: 0, total: 85.8, fulfillment: 'pickup', paymentMethod: 'pix', paymentStatus: 'paid', status: 'delivered', createdAt: iso(-5) }
     ],
     reviews: [
-      { id: 'rev-1', appointmentId: 'apt-107', userId: 'user-client-3', clientName: 'Gabriel Costa', barberId: 'barber-1', barberName: 'Edy Oliveira', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba Terapia', serviceRating: 5, barberRating: 5, comment: 'Degradê navalhado impecável e a barba terapia com toalha quente é outro nível. Pontualidade absurda.', status: 'approved', createdAt: iso(-1) },
-      { id: 'rev-2', appointmentId: 'apt-108', userId: 'user-client-4', clientName: 'Thiago Nogueira', barberId: 'barber-2', barberName: 'Kauê Mendes', serviceId: 'srv-1', serviceName: 'Corte Degradê (Fade)', serviceRating: 5, barberRating: 5, comment: 'O Kauê manda muito bem no low fade e no acabamento. Ambiente top e atendimento rápido.', status: 'approved', createdAt: iso(-3) },
+      { id: 'rev-1', appointmentId: 'apt-107', userId: 'user-client-3', clientName: 'Gabriel Costa', barberId: 'barber-1', barberName: 'Edy Oliveira', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', serviceRating: 5, barberRating: 5, comment: '"Qualidade existe quando há atenção aos mínimos detalhes."', status: 'approved', createdAt: iso(-1) },
+      { id: 'rev-2', appointmentId: 'apt-108', userId: 'user-client-4', clientName: 'Thiago Nogueira', barberId: 'barber-2', barberName: 'Kauê Mendes', serviceId: 'srv-1', serviceName: 'Corte Degradê (Fade)', serviceRating: 5, barberRating: 5, comment: 'O Edy manda muito bem no low fade e no acabamento. Ambiente top e atendimento rápido.', status: 'approved', createdAt: iso(-3) },
       { id: 'rev-3', appointmentId: 'apt-106', userId: 'user-client-2', clientName: 'Matheus Almeida', barberId: 'barber-3', barberName: 'Ricardo Silva', serviceId: 'srv-4', serviceName: 'Corte Social na Tesoura', serviceRating: 5, barberRating: 5, comment: 'Corte todo na tesoura muito bem alinhado, respeitou o caimento natural do cabelo. Recomendo demais.', status: 'approved', createdAt: iso(-2) },
-      { id: 'rev-4', appointmentId: 'apt-109', userId: 'user-client-2', clientName: 'Matheus Almeida', barberId: 'barber-1', barberName: 'Edy Oliveira', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba Terapia', serviceRating: 5, barberRating: 5, comment: 'Sempre saio satisfeito. Agendei pelo app, paguei no Pix e não esperei nem 2 minutos.', status: 'approved', createdAt: iso(-5) }
+      { id: 'rev-4', appointmentId: 'apt-109', userId: 'user-client-2', clientName: 'Matheus Almeida', barberId: 'barber-1', barberName: 'Edy Oliveira', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', serviceRating: 5, barberRating: 5, comment: 'Sempre saio satisfeito. Agendei pelo app, paguei no Pix e não esperei nem 2 minutos.', status: 'approved', createdAt: iso(-5) }
     ],
     loyaltyConfig: { enabled: true, pointsPerRealService: 2, bookingBonusPoints: 25, pointsPerRealProduct: 1, productBonusPoints: 15 },
     rewards: [
@@ -113,7 +113,7 @@
     ],
     pointTransactions: [
       { id: 'ptx-1', userId: 'user-demo-client', type: 'earn', points: 135, description: 'Agendamento: Corte Degradê (Fade)', referenceId: 'apt-105', createdAt: iso(-4) },
-      { id: 'ptx-2', userId: 'user-demo-client', type: 'earn', points: 205, description: 'Agendamento: Combo Corte + Barba Terapia', referenceId: 'apt-101', createdAt: iso(-1) },
+      { id: 'ptx-2', userId: 'user-demo-client', type: 'earn', points: 205, description: 'Agendamento: Combo Corte + Barba', referenceId: 'apt-101', createdAt: iso(-1) },
       { id: 'ptx-3', userId: 'user-demo-client', type: 'earn', points: 130, description: 'Compra na Loja #ORD-501 (Pomada + Óleo)', referenceId: 'ord-501', createdAt: iso(-1) },
       { id: 'ptx-4', userId: 'user-demo-client', type: 'redeem', points: -150, description: 'Resgate: Desconto de R$ 15 em Serviços', referenceId: 'red-1', createdAt: iso(-2) }
     ],
@@ -563,8 +563,8 @@
     var today = s.schedule.find(function (d) { return d.dayIndex === new Date().getDay(); });
     var h = '<div class="hero"><div class="hero-bg"><img src="' + IMG.hero + '" alt="Interior da EDY-K Barbershop"></div><div class="hero-content"><div class="hero-copy">' +
       '<div class="eyebrow">' + esc(s.shopName) + ' · ' + esc(s.neighborhood) + '</div>' +
-      '<h1>Corte de precisão, barba na navalha e estilo atemporal.</h1>' +
-      '<p class="lead">Reserve seu horário em menos de 1 minuto com nosso elenco de barbeiros. Pague via Pix, cartão ou diretamente na cadeira.</p>' +
+      '<h1>"Qualidade existe quando há atenção aos mínimos detalhes."</h1>' +
+      '<p class="lead">Reserve seu horário em menos de 1 minuto com nosso APP. Pague via Pix, cartão ou após o corte.</p>' +
       '<div class="hero-cta"><button class="btn btn-primary btn-lg" data-act="book-start">' + ic('calendar', 18) + ' Agende Seu Horário</button>' +
       '<button class="btn btn-lg" data-act="nav" data-view="shop">' + ic('bag', 18) + ' Explorar Loja EDY-K</button></div></div>' +
       '<div class="proof">' +
