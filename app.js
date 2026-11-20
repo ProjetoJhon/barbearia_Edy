@@ -215,7 +215,8 @@
   var ui = {
     view: 'home', cartOpen: false, cartTab: 'cart', noticeDismissed: false,
     shopCat: 'Todos', aptTab: 'upcoming', authTab: 'login', adminTab: 'dashboard',
-    adminForm: null, reviewFor: null, adminDate: iso(0), toasts: [], sbTest: null,
+    adminForm: null, reviewFor: null, reviewReplyFor: null, reviewEditFor: null, replyEdit: null,
+    adminDate: iso(0), toasts: [], sbTest: null,
     booking: { step: 1, serviceId: '', barberId: '', date: '', time: '', reschedule: null, confirmed: null, payment: 'pix', rewardId: '', name: '', phone: '', installments: 1 }
   };
 
@@ -780,6 +781,71 @@
     notify('Status do agendamento atualizado.', 'info');
   }
 
+  function setOrderPayment(id, status) {
+    if (!isAdmin()) return;
+    var o = state.orders.find(function (x) { return x.id === id; });
+    if (!o) return;
+    o.paymentStatus = status === 'paid' ? 'paid' : 'pending';
+    persist(); render();
+    notify('Pagamento do pedido atualizado.', 'info');
+  }
+
+  function setOrderStatus(id, status) {
+    if (!isAdmin()) return;
+    var o = state.orders.find(function (x) { return x.id === id; });
+    if (!o || ['pending', 'preparing', 'ready', 'delivered', 'cancelled'].indexOf(status) < 0) return;
+    o.status = status;
+    if (status === 'delivered' && o.paymentStatus !== 'paid') o.paymentStatus = 'paid';
+    persist(); render();
+    notify('Status do pedido atualizado.', 'info');
+  }
+
+  function saveReviewEdit(reviewId, text) {
+    if (!isAdmin()) return;
+    var r = state.reviews.find(function (x) { return x.id === reviewId; });
+    text = String(text || '').trim();
+    if (!r || text.length < 3) { notify('O comentário deve ter pelo menos 3 caracteres.', 'error'); return; }
+    r.comment = text;
+    ui.reviewEditFor = null;
+    persist(); render();
+    notify('Comentário da avaliação alterado.');
+  }
+
+  function saveReviewReply(reviewId, text) {
+    if (!isAdmin()) return;
+    var r = state.reviews.find(function (x) { return x.id === reviewId; });
+    text = String(text || '').trim();
+    if (!r || text.length < 2) { notify('A resposta deve ter pelo menos 2 caracteres.', 'error'); return; }
+    if (!Array.isArray(r.replies)) r.replies = [];
+    r.replies.push({ id: uid('reply'), author: 'EDY-K Barbershop', role: 'admin', comment: text, createdAt: iso(0) });
+    ui.reviewReplyFor = null;
+    persist(); render();
+    notify('Resposta publicada.');
+  }
+
+  function saveReplyEdit(reviewId, replyId, text) {
+    if (!isAdmin()) return;
+    var r = state.reviews.find(function (x) { return x.id === reviewId; });
+    var rp = r && Array.isArray(r.replies) ? r.replies.find(function (x) { return x.id === replyId; }) : null;
+    text = String(text || '').trim();
+    if (!rp || text.length < 2) { notify('A resposta deve ter pelo menos 2 caracteres.', 'error'); return; }
+    rp.comment = text;
+    ui.replyEdit = null;
+    persist(); render();
+    notify('Resposta alterada.');
+  }
+
+  function deleteReply(reviewId, replyId) {
+    if (!isAdmin()) return;
+    var r = state.reviews.find(function (x) { return x.id === reviewId; });
+    if (!r || !Array.isArray(r.replies)) return;
+    if (!window.confirm('Excluir esta resposta?')) return;
+    r.replies = r.replies.filter(function (x) { return x.id !== replyId; });
+    ui.replyEdit = null;
+    persist(); render();
+    notify('Resposta excluída.', 'info');
+  }
+
   function submitReview(fd, aptId) {
     var apt = state.appointments.find(function (a) { return a.id === aptId; });
     if (!apt) return;
@@ -788,7 +854,7 @@
       id: uid('rev'), appointmentId: aptId, userId: user() ? user().id : 'guest', clientName: user() ? user().name : apt.clientName,
       barberId: apt.barberId, barberName: apt.barberName, serviceId: apt.serviceId, serviceName: apt.serviceName,
       serviceRating: Number(fd.get('serviceRating')), barberRating: Number(fd.get('barberRating')),
-      comment: String(fd.get('comment') || '').trim(), status: 'approved', createdAt: iso(0)
+      comment: String(fd.get('comment') || '').trim(), replies: [], status: 'approved', createdAt: iso(0)
     });
     ui.reviewFor = null;
     persist(); render();
@@ -903,7 +969,10 @@
     if (reviews.length) {
       h += '<section class="section container">' + sectionHead('Experiência Real', 'Avaliações Recentes', '<p class="muted small">Nota média <strong class="gold">' + avg + ' ★</strong> verificada após atendimentos concluídos.</p>') +
         '<div class="grid grid-3">' + reviews.map(function (r) {
-          return '<article class="card review-card"><div class="row-between"><div>' + stars(Math.round((r.barberRating + r.serviceRating) / 2)) + '</div><span class="small muted">' + fmtDate(r.createdAt) + '</span></div><p class="mt-2">"' + esc(r.comment) + '"</p><div class="divider"></div><div class="row-between small"><strong>' + esc(r.clientName) + '</strong><span class="gold mono">Serviço ' + r.serviceRating + '★ · Barbeiro ' + r.barberRating + '★</span></div><div class="small muted mt-1">' + esc(r.serviceName) + ' · com ' + esc(r.barberName) + '</div></article>';
+          var replies = (r.replies || []).map(function (rp) {
+            return '<div class="small mt-2" style="border-left:2px solid var(--gold);padding-left:10px"><strong class="gold">' + esc(rp.author || 'EDY-K') + '</strong> · <span class="muted">' + fmtDate(rp.createdAt) + '</span><div class="mt-1">' + esc(rp.comment) + '</div></div>';
+          }).join('');
+          return '<article class="card review-card"><div class="row-between"><div>' + stars(Math.round((r.barberRating + r.serviceRating) / 2)) + '</div><span class="small muted">' + fmtDate(r.createdAt) + '</span></div><p class="mt-2">"' + esc(r.comment) + '"</p>' + replies + '<div class="divider"></div><div class="row-between small"><strong>' + esc(r.clientName) + '</strong><span class="gold mono">Serviço ' + r.serviceRating + '★ · Barbeiro ' + r.barberRating + '★</span></div><div class="small muted mt-1">' + esc(r.serviceName) + ' · com ' + esc(r.barberName) + '</div></article>';
         }).join('') + '</div></section>';
     }
 
@@ -1170,8 +1239,40 @@
   }
 
   function adminReviews() {
-    return '<div><div class="eyebrow">Moderação</div><h2>Avaliações</h2><div class="panel table-wrap mt-3"><table><thead><tr><th>Data</th><th>Cliente</th><th>Notas</th><th>Comentário</th><th>Status</th><th>Ações</th></tr></thead><tbody>' +
-      state.reviews.map(function (r) { return '<tr><td class="mono">' + fmtDate(r.createdAt) + '</td><td>' + esc(r.clientName) + '<div class="small muted">' + esc(r.barberName) + '</div></td><td class="gold mono">' + r.serviceRating + '★ / ' + r.barberRating + '★</td><td style="max-width:340px">' + esc(r.comment) + '</td><td>' + statusBadge(r.status === 'approved' ? 'confirmed' : 'cancelled') + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="review-moderate" data-id="' + r.id + '">' + (r.status === 'approved' ? 'Ocultar' : 'Aprovar') + '</button><button class="btn btn-sm btn-danger" data-act="review-delete" data-id="' + r.id + '">' + ic('trash', 13) + '</button></div></td></tr>'; }).join('') + '</tbody></table></div></div>';
+    var rows = state.reviews.map(function (r) {
+      var replies = (r.replies || []).map(function (rp) {
+        var editing = ui.replyEdit && ui.replyEdit.reviewId === r.id && ui.replyEdit.replyId === rp.id;
+        return '<div class="reply-item small" style="padding:6px 0;border-top:1px dashed var(--border)">' +
+          '<div class="row-between"><strong class="gold">' + esc(rp.author || 'EDY-K') + '</strong><span class="muted">' + fmtDate(rp.createdAt) + '</span></div>' +
+          (editing
+            ? '<form class="mt-1" data-form="reply-edit" data-review="' + r.id + '" data-id="' + rp.id + '"><textarea name="comment" rows="2">' + esc(rp.comment) + '</textarea><div class="row mt-1"><button class="btn btn-sm btn-primary" type="submit">Salvar</button><button class="btn btn-sm" type="button" data-act="reply-edit-cancel">Cancelar</button></div></form>'
+            : '<div class="mt-1">' + esc(rp.comment) + '</div><div class="row mt-1"><button class="btn btn-sm" data-act="reply-edit-open" data-review="' + r.id + '" data-id="' + rp.id + '">Editar resposta</button><button class="btn btn-sm btn-danger" data-act="reply-delete" data-review="' + r.id + '" data-id="' + rp.id + '">Excluir</button></div>') +
+          '</div>';
+      }).join('');
+      var editForm = ui.reviewEditFor === r.id
+        ? '<form class="mt-2" data-form="review-edit" data-id="' + r.id + '"><textarea name="comment" rows="3">' + esc(r.comment) + '</textarea><div class="row mt-1"><button class="btn btn-sm btn-primary" type="submit">Salvar comentário</button><button class="btn btn-sm" type="button" data-act="review-edit-cancel">Cancelar</button></div></form>'
+        : '<div>"' + esc(r.comment) + '"</div>';
+      var replyForm = ui.reviewReplyFor === r.id
+        ? '<form class="mt-2" data-form="review-reply" data-id="' + r.id + '"><textarea name="comment" rows="2" placeholder="Responder como EDY-K"></textarea><div class="row mt-1"><button class="btn btn-sm btn-primary" type="submit">Publicar resposta</button><button class="btn btn-sm" type="button" data-act="review-reply-cancel">Cancelar</button></div></form>'
+        : '';
+      return '<tr><td class="mono">' + fmtDate(r.createdAt) + '</td><td>' + esc(r.clientName) + '<div class="small muted">' + esc(r.barberName) + '</div></td><td class="gold mono">' + r.serviceRating + '★ / ' + r.barberRating + '★</td><td style="max-width:340px">' + editForm + replies + replyForm + '</td><td>' + statusBadge(r.status === 'approved' ? 'confirmed' : 'cancelled') + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="review-reply-open" data-id="' + r.id + '">' + ic('edit', 13) + ' Responder</button><button class="btn btn-sm" data-act="review-edit-open" data-id="' + r.id + '">Editar</button><button class="btn btn-sm" data-act="review-moderate" data-id="' + r.id + '">' + (r.status === 'approved' ? 'Ocultar' : 'Aprovar') + '</button><button class="btn btn-sm btn-danger" data-act="review-delete" data-id="' + r.id + '">' + ic('trash', 13) + '</button></div></td></tr>';
+    }).join('');
+    return '<div><div class="row-between"><div><div class="eyebrow">Moderação</div><h2>Avaliações e comentários</h2></div><span class="badge ok">' + state.reviews.length + ' avaliação(ões)</span></div>' +
+      '<p class="muted small mt-2">Você pode responder, editar, ocultar ou excluir avaliações. As respostas aparecem na página inicial.</p>' +
+      '<div class="panel table-wrap mt-3"><table><thead><tr><th>Data</th><th>Cliente</th><th>Notas</th><th>Comentário e respostas</th><th>Status</th><th>Ações</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="center muted">Nenhuma avaliação cadastrada.</td></tr>') + '</tbody></table></div></div>';
+  }
+
+  function adminOrders() {
+    var rows = state.orders.map(function (o) {
+      var pay = o.paymentStatus === 'paid';
+      var payLabel = o.paymentMethod === 'pix' ? 'Pix' : o.paymentMethod === 'credit_card' ? 'Cartão' : 'Na loja';
+      var statuses = ['pending', 'preparing', 'ready', 'delivered', 'cancelled'];
+      return '<tr><td class="mono">' + fmtDate(o.createdAt) + '</td><td>' + esc(o.clientName) + '<div class="small muted">' + esc(o.clientPhone) + '</div></td><td>' + o.items.length + ' item(ns)</td><td class="mono">' + money(o.total) + '</td><td>' + esc(payLabel) + '</td><td><span class="badge ' + (pay ? 'ok' : 'warn') + '">' + (pay ? 'Pago' : 'Pendente') + '</span></td><td><select data-act="admin-order-payment" data-id="' + o.id + '" class="btn btn-sm"><option value="paid"' + (pay ? ' selected' : '') + '>Pago</option><option value="pending"' + (!pay ? ' selected' : '') + '>Pendente</option></select></td><td>' + statusBadge(o.status) + '</td><td><select data-act="admin-order-status" data-id="' + o.id + '" class="btn btn-sm">' + statuses.map(function (s) { return '<option value="' + s + '"' + (o.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></td></tr>';
+    }).join('');
+    var faturado = state.orders.reduce(function (s, o) { return s + (o.paymentStatus === 'paid' ? o.total : 0); }, 0);
+    return '<div><div class="row-between"><div><div class="eyebrow">Financeiro</div><h2>Pedidos e pagamentos</h2></div><div class="display" style="font-size:22px">' + money(faturado) + '</div></div>' +
+      '<p class="muted small mt-2">Gerencie o recebimento e o andamento de cada pedido da loja. Os pedidos também aparecem para o cliente em Meus horários.</p>' +
+      '<div class="panel table-wrap mt-3"><table><thead><tr><th>Data</th><th>Cliente</th><th>Itens</th><th>Total</th><th>Método</th><th>Pagamento</th><th>Marcar como</th><th>Entrega</th><th>Status do pedido</th></tr></thead><tbody>' + (rows || '<tr><td colspan="9" class="center muted">Nenhum pedido registrado.</td></tr>') + '</tbody></table></div></div>';
   }
 
   function adminSettings() {
@@ -1223,10 +1324,11 @@
 
   function viewAdmin() {
     if (!isAdmin()) return viewAuth(true);
-    var tabs = [['dashboard', 'Dashboard'], ['agenda', 'Agenda'], ['users', 'Usuários'], ['services', 'Serviços'], ['products', 'Produtos'], ['barbers', 'Barbeiros'], ['rewards', 'Recompensas'], ['reviews', 'Avaliações'], ['loyalty', 'Fidelidade'], ['supabase', 'Supabase'], ['settings', 'Configurações']];
+    var tabs = [['dashboard', 'Dashboard'], ['agenda', 'Agenda'], ['orders', 'Pedidos'], ['users', 'Usuários'], ['services', 'Serviços'], ['products', 'Produtos'], ['barbers', 'Barbeiros'], ['rewards', 'Recompensas'], ['reviews', 'Avaliações'], ['loyalty', 'Fidelidade'], ['supabase', 'Supabase'], ['settings', 'Configurações']];
     var body;
     switch (ui.adminTab) {
       case 'agenda': body = adminAgenda(); break;
+      case 'orders': body = adminOrders(); break;
       case 'users': body = adminCRUD('users'); break;
       case 'services': body = adminCRUD('services'); break;
       case 'products': body = adminCRUD('products'); break;
@@ -1371,8 +1473,13 @@
         break;
       }
       case 'logout': logout().then(function () { nav('home'); }); break;
-      case 'admin-tab': ui.adminTab = el.getAttribute('data-tab'); renderView(); break;
+      case 'admin-tab':
+        if (!isAdmin()) break;
+        ui.adminTab = el.getAttribute('data-tab');
+        renderView();
+        break;
       case 'admin-new': {
+        if (!isAdmin()) break;
         var kindNew = el.getAttribute('data-kind');
         var hasActive = CRUD[kindNew].fields.some(function (f) { return f.k === 'active'; });
         ui.adminForm = { kind: kindNew, id: null, values: hasActive ? { active: true } : {} };
@@ -1380,6 +1487,7 @@
         break;
       }
       case 'admin-edit': {
+        if (!isAdmin()) break;
         var kind = el.getAttribute('data-kind');
         ui.adminForm = { kind: kind, id: id, values: clone(state[CRUD[kind].key].find(function (x) { return x.id === id; }) || {}) };
         if (kind === 'users') ui.adminForm.values.password = '';
@@ -1388,6 +1496,7 @@
       }
       case 'admin-form-close': ui.adminForm = null; renderView(); break;
       case 'admin-delete': {
+        if (!isAdmin()) break;
         var k2 = el.getAttribute('data-kind');
         if (k2 === 'users' && state.currentUser && state.currentUser.id === id) {
           notify('Não é possível excluir o usuário que está logado.', 'error');
@@ -1403,27 +1512,47 @@
         break;
       }
       case 'review-moderate': {
+        if (!isAdmin()) break;
         var r = state.reviews.find(function (x) { return x.id === id; });
         if (r) { r.status = r.status === 'approved' ? 'hidden' : 'approved'; persist(); render(); notify('Status da avaliação atualizado.', 'info'); }
         break;
       }
       case 'review-delete':
+        if (!isAdmin()) break;
         if (window.confirm('Excluir avaliação permanentemente?')) {
           state.reviews = state.reviews.filter(function (x) { return x.id !== id; });
           persist(); render(); notify('Avaliação removida.', 'info');
         }
         break;
+      case 'review-reply-open': ui.reviewReplyFor = id; ui.reviewEditFor = null; renderView(); break;
+      case 'review-reply-cancel': ui.reviewReplyFor = null; renderView(); break;
+      case 'review-edit-open': ui.reviewEditFor = id; ui.reviewReplyFor = null; renderView(); break;
+      case 'review-edit-cancel': ui.reviewEditFor = null; renderView(); break;
+      case 'reply-edit-open':
+        ui.replyEdit = { reviewId: el.getAttribute('data-review'), replyId: id };
+        renderView();
+        break;
+      case 'reply-edit-cancel': ui.replyEdit = null; renderView(); break;
+      case 'reply-delete': deleteReply(el.getAttribute('data-review'), id); break;
       case 'admin-reset':
+        if (!isAdmin()) break;
         if (window.confirm('Restaurar todos os dados de demonstração?')) resetDemo();
         break;
       case 'sb-connect':
+        if (!isAdmin()) break;
         sbLoad().then(function (ok) {
           notify(ok ? 'Conexão com o Supabase OK.' : 'Falha ao conectar: ' + (sb.error || 'verifique URL, chave e tabelas.'), ok ? 'success' : 'error');
           renderView();
         });
         break;
-      case 'sb-publish': sbPublishSeed(); break;
-      case 'sb-test': sbSelfTest(); break;
+      case 'sb-publish':
+        if (!isAdmin()) break;
+        sbPublishSeed();
+        break;
+      case 'sb-test':
+        if (!isAdmin()) break;
+        sbSelfTest();
+        break;
       case 'admin-exit': nav('home'); break;
     }
   });
@@ -1448,9 +1577,12 @@
         break;
       case 'booking': confirmBooking(fd); break;
       case 'review': submitReview(fd, ui.reviewFor); break;
+      case 'review-reply': saveReviewReply(f.getAttribute('data-id'), fd.get('comment')); break;
+      case 'review-edit': saveReviewEdit(f.getAttribute('data-id'), fd.get('comment')); break;
+      case 'reply-edit': saveReplyEdit(f.getAttribute('data-review'), f.getAttribute('data-id'), fd.get('comment')); break;
       case 'checkout': createOrder(fd); break;
       case 'admin-form':
-        if (!ui.adminForm) return;
+        if (!isAdmin() || !ui.adminForm) return;
         cfg = CRUD[ui.adminForm.kind];
         var syncedKind = ui.adminForm.kind;
         obj = {};
@@ -1492,6 +1624,7 @@
         ui.adminForm = null; persist(); render();
         break;
       case 'supabase-config': {
+        if (!isAdmin()) return;
         var cfgUrl = String(fd.get('url') || '').trim().replace(/\/+$/, '');
         var cfgKey = String(fd.get('anonKey') || '').trim();
         try { localStorage.setItem(SB_CONFIG_KEY, JSON.stringify({ url: cfgUrl, anonKey: cfgKey })); } catch (e) { /* ignore */ }
@@ -1505,6 +1638,7 @@
         break;
       }
       case 'settings': {
+        if (!isAdmin()) return;
         var s = state.settings;
         ['shopName', 'tagline', 'phone', 'whatsappUrl', 'instagramHandle', 'address', 'neighborhood', 'customLogoUrl', 'topNoticeText'].forEach(function (k) { s[k] = String(fd.get(k) || '').trim(); });
         s.deliveryFee = Number(fd.get('deliveryFee') || 0);
@@ -1519,6 +1653,7 @@
         break;
       }
       case 'loyalty': {
+        if (!isAdmin()) return;
         var c = state.loyaltyConfig;
         c.enabled = fd.has('enabled');
         ['pointsPerRealService', 'bookingBonusPoints', 'pointsPerRealProduct', 'productBonusPoints'].forEach(function (k) { c[k] = Number(fd.get(k) || 0); });
@@ -1538,8 +1673,10 @@
 
   document.addEventListener('change', function (e) {
     var t = e.target, a = t.getAttribute && t.getAttribute('data-act');
-    if (a === 'admin-date') { ui.adminDate = t.value; renderView(); }
-    else if (a === 'admin-status') setAppointmentStatus(t.getAttribute('data-id'), t.value);
+    if (a === 'admin-date') { if (isAdmin()) { ui.adminDate = t.value; renderView(); } }
+    else if (a === 'admin-status') { if (isAdmin()) setAppointmentStatus(t.getAttribute('data-id'), t.value); }
+    else if (a === 'admin-order-payment') setOrderPayment(t.getAttribute('data-id'), t.value);
+    else if (a === 'admin-order-status') setOrderStatus(t.getAttribute('data-id'), t.value);
     else if (t.name === 'rewardId' && ui.view === 'booking') ui.booking.rewardId = t.value;
   });
 
