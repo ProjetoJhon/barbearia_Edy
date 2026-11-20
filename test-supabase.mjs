@@ -119,8 +119,22 @@ async function run() {
   }
 
   try {
-    const userId = encodeURIComponent(login.data.user.id);
-    const profile = await request(`/rest/v1/users?select=id&id=eq.${userId}`, { token });
+    const uid = login.data.user.id;
+    /* O app cria o perfil no primeiro login; o teste entra direto pelo Auth,
+     * então garante o perfil aqui para validar apenas a leitura via RLS. */
+    await request('/rest/v1/users?on_conflict=id', {
+      method: 'POST',
+      token,
+      body: {
+        id: uid,
+        name: 'Administrador EDY-K',
+        email,
+        phone: '',
+        role: 'admin',
+        created_at: new Date().toISOString()
+      }
+    });
+    const profile = await request(`/rest/v1/users?select=id&id=eq.${encodeURIComponent(uid)}`, { token });
     log('Usuário lê apenas o próprio perfil', profile.ok && Array.isArray(profile.data) && profile.data.length === 1);
   } catch (e) {
     log('Usuário lê apenas o próprio perfil', false, e.message);
