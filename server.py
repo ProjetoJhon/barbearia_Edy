@@ -40,7 +40,7 @@ class EDYKHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
-        if path == "/api/health":
+        if path in ("/health", "/api/health", "/health/", "/api/health/"):
             self._json(200, {"status": "ok", "app": "EDY-K Barbershop"})
             return
         if path in ("/api/state", "/api/state/"):
@@ -72,7 +72,9 @@ class EDYKHandler(SimpleHTTPRequestHandler):
 
     def log_message(self, fmt, *args):
         # Log enxuto, sem poluir o terminal com requisições de assets.
-        if "/api/" in (args[0] if args else ""):
+        # fmt % args aceita HTTPStatus (ex.: 404), ao contrário de str(args[0]).
+        message = fmt % args
+        if "/api/" in message or "/health" in message:
             super().log_message(fmt, *args)
 
 

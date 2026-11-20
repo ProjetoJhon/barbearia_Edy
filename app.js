@@ -117,7 +117,8 @@
       { id: 'ptx-3', userId: 'user-demo-client', type: 'earn', points: 130, description: 'Compra na Loja #ORD-501 (Pomada + Óleo)', referenceId: 'ord-501', createdAt: iso(-1) },
       { id: 'ptx-4', userId: 'user-demo-client', type: 'redeem', points: -150, description: 'Resgate: Desconto de R$ 15 em Serviços', referenceId: 'red-1', createdAt: iso(-2) }
     ],
-    cart: []
+    cart: [],
+    currentUser: null
   };
 
   /* ==========================================================
@@ -214,11 +215,155 @@
   var ui = {
     view: 'home', cartOpen: false, cartTab: 'cart', noticeDismissed: false,
     shopCat: 'Todos', aptTab: 'upcoming', authTab: 'login', adminTab: 'dashboard',
-    adminForm: null, reviewFor: null, adminDate: iso(0), toasts: [],
+    adminForm: null, reviewFor: null, adminDate: iso(0), toasts: [], sbTest: null,
     booking: { step: 1, serviceId: '', barberId: '', date: '', time: '', reschedule: null, confirmed: null, payment: 'pix', rewardId: '', name: '', phone: '', installments: 1 }
   };
 
   var apiAvailable = false, apiTimer = null;
+
+  /* ==========================================================
+   * 3b. Supabase via REST (sem dependências / sem npm)
+   *     Apenas users e products são remotos; o resto segue no localStorage.
+   * ========================================================== */
+  var SB_CONFIG_KEY = 'edyk_supabase_config';
+  var sb = { ok: false, checked: false, error: '' };
+
+  function sbConfig() {
+    var file = window.EDYK_SUPABASE || {};
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(SB_CONFIG_KEY) || '{}') || {}; } catch (e) { /* ignore */ }
+    /* O valor salvo no painel admin tem prioridade, inclusive quando vazio
+     * (assim é possível limpar uma configuração antiga sem editar config.js). */
+    var hasUrl = Object.prototype.hasOwnProperty.call(saved, 'url');
+    var hasKey = Object.prototype.hasOwnProperty.call(saved, 'anonKey');
+    return {
+      url: String(hasUrl ? saved.url : (file.url || '')).trim().replace(/\/+$/, ''),
+      anonKey: String(hasKey ? saved.anonKey : (file.anonKey || '')).trim()
+    };
+  }
+  function sbReady() { var c = sbConfig(); return !!(c.url && c.anonKey); }
+  function sbRequest(table, method, query, body) {
+    var c = sbConfig();
+    if (!c.url || !c.anonKey) return Promise.reject(new Error('Supabase não configurado'));
+    return fetch(c.url + '/rest/v1/' + table + (query || ''), {
+      method: method,
+      headers: {
+        'apikey': c.anonKey,
+        'Authorization': 'Bearer ' + c.anonKey,
+        'Content-Type': 'application/json',
+        'Prefer': method === 'POST' ? 'return=representation,resolution=merge-duplicates' : 'return=representation'
+      },
+      body: body == null ? undefined : JSON.stringify(body)
+    }).then(function (r) {
+      if (!r.ok) {
+        return r.text().then(function (t) { throw new Error('HTTP ' + r.status + ': ' + String(t).slice(0, 180)); });
+      }
+      return r.status === 204 ? null : r.json();
+    });
+  }
+
+  function userToRow(u) {
+    return { id: u.id, name: u.name, email: u.email, phone: u.phone || '', password: u.password || '', role: u.role || 'client', created_at: u.createdAt || iso(0) };
+  }
+  function rowToUser(r) {
+    return { id: r.id, name: r.name, email: r.email, phone: r.phone || '', password: r.password || '', role: r.role || 'client', createdAt: r.created_at || iso(0) };
+  }
+  function productToRow(p) {
+    return { id: p.id, name: p.name, description: p.description || '', category: p.category || '', price: Number(p.price) || 0, promo_price: p.promoPrice == null ? null : Number(p.promoPrice), stock: Number(p.stock) || 0, image: p.image || '', active: !!p.active, featured: !!p.featured };
+  }
+  function rowToProduct(r) {
+    var p = { id: r.id, name: r.name, description: r.description || '', category: r.category || '', price: Number(r.price) || 0, stock: Number(r.stock) || 0, image: r.image || '', active: r.active !== false, featured: !!r.featured };
+    if (r.promo_price != null) p.promoPrice = Number(r.promo_price);
+    return p;
+  }
+
+  function sbUpsert(kind, item) {
+    if (!sbReady()) return Promise.resolve(false);
+    var table = kind === 'users' ? 'users' : 'products';
+    var row = kind === 'users' ? userToRow(item) : productToRow(item);
+    return sbRequest(table, 'POST', '?on_conflict=id', row)
+      .then(function () { sb.ok = true; sb.error = ''; return true; })
+      .catch(function (e) { sb.ok = false; sb.error = e.message; notify('Falha ao salvar no Supabase (' + kind + '): ' + e.message, 'error'); return false; });
+  }
+  function sbRemove(kind, id) {
+    if (!sbReady()) return Promise.resolve(false);
+    return sbRequest(kind === 'users' ? 'users' : 'products', 'DELETE', '?id=eq.' + encodeURIComponent(id))
+      .then(function () { sb.ok = true; sb.error = ''; return true; })
+      .catch(function (e) { sb.ok = false; sb.error = e.message; notify('Falha ao excluir no Supabase (' + kind + '): ' + e.message, 'error'); return false; });
+  }
+  function sbLoad() {
+    if (!sbReady()) { sb.checked = false; renderView(); return Promise.resolve(false); }
+    var before = sb.checked + ':' + sb.ok;
+    function refreshStatus() { if (before !== sb.checked + ':' + sb.ok) renderView(); }
+    return Promise.all([
+      sbRequest('users', 'GET', '?select=*'),
+      sbRequest('products', 'GET', '?select=*')
+    ]).then(function (res) {
+      sb.ok = true; sb.checked = true; sb.error = '';
+      var changed = false;
+      if (Array.isArray(res[0]) && res[0].length) { state.users = res[0].map(rowToUser); changed = true; }
+      if (Array.isArray(res[1]) && res[1].length) { state.products = res[1].map(rowToProduct); changed = true; }
+      if (changed) {
+        if (state.currentUser) {
+          state.currentUser = state.users.find(function (u) { return u.id === state.currentUser.id; }) || null;
+        }
+        persist(); render();
+      } else refreshStatus();
+      return true;
+    }).catch(function (e) {
+      sb.ok = false; sb.checked = true; sb.error = e.message;
+      refreshStatus();
+      return false;
+    });
+  }
+  function sbPublishSeed() {
+    if (!sbReady()) { notify('Configure a URL e a chave anon antes.', 'error'); return; }
+    Promise.all([
+      sbRequest('users', 'POST', '?on_conflict=id', SEED.users.map(userToRow)),
+      sbRequest('products', 'POST', '?on_conflict=id', SEED.products.map(productToRow))
+    ]).then(function () {
+      sb.ok = true; sb.error = '';
+      notify('Dados iniciais publicados no Supabase.');
+      return sbLoad();
+    }).catch(function (e) { sb.ok = false; sb.error = e.message; notify('Falha ao publicar: ' + e.message, 'error'); });
+  }
+  function sbSelfTest() {
+    if (!sbReady()) { notify('Configure a URL e a chave anon antes.', 'error'); return; }
+    var stamp = Date.now().toString().slice(-7) + Math.floor(Math.random() * 90 + 10);
+    var u = { id: 'test-user-' + stamp, name: 'Teste EDY-K', email: 'teste.' + stamp + '@edyk.test', phone: '(11) 90000-0000', password: '123456', role: 'client', createdAt: iso(0) };
+    var p = { id: 'test-prod-' + stamp, name: 'Produto Teste EDY-K', description: 'Registro temporário criado pelo teste', category: 'Kits', price: 10, stock: 1, image: 'assets/images/product-kit.jpg', active: true, featured: false };
+    var steps = [];
+    ui.sbTest = { running: true, ok: false, steps: steps };
+    renderView();
+
+    function step(text, ok) { steps.push({ text: text, ok: !!ok }); ui.sbTest.steps = steps.slice(); renderView(); }
+    function del(table, id) { return sbRequest(table, 'DELETE', '?id=eq.' + encodeURIComponent(id)).catch(function () {}); }
+    function gone(table, id) {
+      return sbRequest(table, 'GET', '?select=id&id=eq.' + encodeURIComponent(id))
+        .then(function (r) { return !Array.isArray(r) || r.length === 0; })
+        .catch(function () { return false; });
+    }
+    function finish(ok, err) {
+      if (err) step('Erro: ' + err, false);
+      Promise.all([del('users', u.id), del('products', p.id)])
+        .then(function () { return Promise.all([gone('users', u.id), gone('products', p.id)]); })
+        .then(function (r) {
+          var clean = r[0] && r[1];
+          step('Excluir registros de teste', clean);
+          ui.sbTest = { running: false, ok: ok && clean, steps: steps.slice() };
+          sb.ok = sb.ok && ui.sbTest.ok;
+          renderView();
+          notify(ui.sbTest.ok ? 'Teste de insert/exclusão concluído com sucesso.' : 'Teste com falhas — veja os detalhes no painel.', ui.sbTest.ok ? 'success' : 'error');
+        });
+    }
+
+    sbRequest('users', 'POST', '?on_conflict=id', userToRow(u))
+      .then(function () { step('Inserir usuário de teste', true); return sbRequest('products', 'POST', '?on_conflict=id', productToRow(p)); })
+      .then(function () { step('Inserir produto de teste', true); return sbRequest('users', 'GET', '?select=id&id=eq.' + encodeURIComponent(u.id)); })
+      .then(function (r) { step('Consultar usuário inserido', Array.isArray(r) && r.length > 0); return sbRequest('products', 'GET', '?select=id&id=eq.' + encodeURIComponent(p.id)); })
+      .then(function (r) { step('Consultar produto inserido', Array.isArray(r) && r.length > 0); finish(true); })
+      .catch(function (e) { sb.ok = false; sb.error = e.message; finish(false, e.message); });
+  }
 
   function persist() {
     Object.keys(SEED).forEach(function (k) {
@@ -227,12 +372,18 @@
     if (!apiAvailable) return;
     clearTimeout(apiTimer);
     apiTimer = setTimeout(function () {
-      fetch('api/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) }).catch(function () {});
+      /* currentUser é sessão do navegador: não vai para o estado compartilhado. */
+      var shared = {};
+      Object.keys(SEED).forEach(function (k) { if (k !== 'currentUser') shared[k] = state[k]; });
+      fetch('api/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(shared) }).catch(function () {});
     }, 600);
   }
 
   function initRemote() {
-    /* Em deploy estático (ex.: Vercel) não existe a API Python: usa localStorage. */
+    /* Supabase funciona em qualquer origem: file://, localhost ou Vercel. */
+    sbLoad();
+
+    /* A API Python de persistência só existe em localhost. */
     if (!/^https?:$/.test(location.protocol)) return;
     if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
     fetch('api/state', { cache: 'no-store' })
@@ -242,6 +393,7 @@
         if (data && typeof data === 'object') {
           var changed = false;
           Object.keys(SEED).forEach(function (k) {
+            if (k === 'currentUser') return; /* sessão permanece local ao navegador */
             if (data[k] !== undefined && JSON.stringify(data[k]) !== JSON.stringify(state[k])) { state[k] = data[k]; changed = true; }
           });
           if (changed) render();
@@ -329,6 +481,7 @@
     state.users.push(u);
     state.currentUser = u;
     persist();
+    sbUpsert('users', u);
     notify('Conta criada com sucesso! Seja bem-vindo à EDY-K.');
     return { ok: true, user: u };
   }
@@ -382,7 +535,7 @@
     if (reward) { reward.status = 'used'; reward.usedAt = iso(0); }
     items.forEach(function (i) {
       var p = state.products.find(function (x) { return x.id === i.productId; });
-      if (p) p.stock = Math.max(0, p.stock - i.quantity);
+      if (p) { p.stock = Math.max(0, p.stock - i.quantity); sbUpsert('products', p); }
     });
     if (user() && state.loyaltyConfig.enabled) {
       var pts = productPoints(discounted);
@@ -764,6 +917,11 @@
    * 6. Render — painel administrativo
    * ========================================================== */
   var CRUD = {
+    users: { title: 'Usuários', key: 'users', prefix: 'user', fields: [
+      { k: 'name', l: 'Nome', t: 'text' }, { k: 'email', l: 'E-mail', t: 'text' },
+      { k: 'phone', l: 'Telefone', t: 'text' }, { k: 'password', l: 'Senha', t: 'text' },
+      { k: 'role', l: 'Perfil', t: 'select', opts: ['client', 'admin'] }
+    ] },
     services: { title: 'Serviços', key: 'services', prefix: 'srv', fields: [
       { k: 'name', l: 'Nome', t: 'text' }, { k: 'category', l: 'Categoria', t: 'select', opts: ['Cabelo', 'Barba', 'Combo', 'Acabamento'] },
       { k: 'price', l: 'Preço (R$)', t: 'number' }, { k: 'durationMinutes', l: 'Duração (min)', t: 'number' },
@@ -803,21 +961,26 @@
     var values = f.values || {};
     return '<div class="modal-wrap"><div class="overlay" data-act="admin-form-close"></div><form class="modal" data-form="admin-form"><div class="row-between"><h2>' + (f.id ? 'Editar' : 'Novo') + ' · ' + cfg.title + '</h2><button type="button" class="icon-btn" data-act="admin-form-close">' + ic('x') + '</button></div>' +
       '<div class="form-grid mt-3">' + cfg.fields.map(function (field) { return fieldHTML(field, values[field.k]); }).join('') + '</div>' +
+      (f.kind === 'users' && f.id ? '<p class="small muted mt-2">Deixe a senha em branco para manter a atual.</p>' : '') +
       '<div class="row mt-3"><button class="btn btn-primary" type="submit">Salvar</button><button class="btn" type="button" data-act="admin-form-close">Cancelar</button></div></form></div>';
   }
 
   function adminCRUD(kind) {
-    var cfg = CRUD[kind], list = state[cfg.key];
+    var cfg = CRUD[kind], list = state[cfg.key], isUsers = kind === 'users';
     var heads = cfg.fields.slice(0, 4).map(function (f) { return '<th>' + esc(f.l) + '</th>'; }).join('');
     var rows = list.map(function (item) {
       var cells = cfg.fields.slice(0, 4).map(function (f) {
         var v = item[f.k];
+        if (f.k === 'password') v = '••••••';
         return '<td>' + (Array.isArray(v) ? esc(v.join(',')) : esc(v)) + '</td>';
       }).join('');
-      return '<tr>' + cells + '<td>' + statusBadge(item.active ? 'confirmed' : 'cancelled') + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="admin-edit" data-kind="' + kind + '" data-id="' + item.id + '">' + ic('edit', 13) + '</button><button class="btn btn-sm btn-danger" data-act="admin-delete" data-kind="' + kind + '" data-id="' + item.id + '">' + ic('trash', 13) + '</button></div></td></tr>';
+      var status = isUsers
+        ? '<span class="badge ' + (item.role === 'admin' ? 'gold' : '') + '">' + esc(item.role === 'admin' ? 'admin' : 'client') + '</span>'
+        : statusBadge(item.active ? 'confirmed' : 'cancelled');
+      return '<tr>' + cells + '<td>' + status + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="admin-edit" data-kind="' + kind + '" data-id="' + item.id + '">' + ic('edit', 13) + '</button><button class="btn btn-sm btn-danger" data-act="admin-delete" data-kind="' + kind + '" data-id="' + item.id + '">' + ic('trash', 13) + '</button></div></td></tr>';
     }).join('');
-    return '<div class="row-between"><div><div class="eyebrow">CMS</div><h2>' + cfg.title + '</h2></div><button class="btn btn-primary" data-act="admin-new" data-kind="' + kind + '">' + ic('plus', 15) + ' Novo</button></div>' +
-      '<div class="panel table-wrap mt-3"><table><thead><tr>' + heads + '<th>Status</th><th>Ações</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="center muted">Nenhum item cadastrado.</td></tr>') + '</tbody></table></div>' + adminFormHTML();
+    return '<div class="row-between"><div><div class="eyebrow">' + (isUsers ? 'Banco de dados' : 'CMS') + '</div><h2>' + cfg.title + '</h2></div><button class="btn btn-primary" data-act="admin-new" data-kind="' + kind + '">' + ic('plus', 15) + ' Novo</button></div>' +
+      '<div class="panel table-wrap mt-3"><table><thead><tr>' + heads + '<th>' + (isUsers ? 'Perfil' : 'Status') + '</th><th>Ações</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="center muted">Nenhum item cadastrado.</td></tr>') + '</tbody></table></div>' + adminFormHTML();
   }
 
   function adminDashboard() {
@@ -872,23 +1035,51 @@
       '<p class="muted small mt-3">Para editar as recompensas, use a aba <button class="link-btn" data-act="admin-tab" data-tab="rewards">Recompensas</button>.</p></div>';
   }
 
+  function adminSupabase() {
+    var c = sbConfig(), test = ui.sbTest;
+    var partial = !sbReady() && !!(c.url || c.anonKey);
+    var status = partial ? 'Configuração incompleta — falta ' + (!c.url ? 'Project URL' : 'anon key')
+      : !sbReady() ? 'Não configurado'
+      : (!sb.checked ? 'Configurado — aguardando primeira conexão'
+      : sb.ok ? 'Conectado' : 'Erro de conexão');
+    var badge = !sbReady() ? 'warn' : (sb.checked && sb.ok ? 'ok' : (sb.checked ? 'bad' : 'warn'));
+    return '<div><div class="eyebrow">Banco de dados</div><h2>Supabase</h2>' +
+      '<p class="muted small mt-2">Usuários e produtos são lidos e gravados diretamente no Supabase via REST. Os demais dados (agendamentos, pedidos, pontos etc.) continuam no armazenamento local.</p>' +
+      '<div class="card mt-3"><div class="row-between wrap"><div><div class="eyebrow">Status</div><h3 class="mt-1">' + esc(status) + '</h3></div><span class="badge ' + badge + '">' + esc(partial ? 'incompleto' : sbReady() ? (sb.checked ? (sb.ok ? 'online' : 'falhou') : 'configurado') : 'offline') + '</span></div>' +
+      (sb.error ? '<p class="small mt-2" style="color:var(--danger);word-break:break-all">' + esc(sb.error) + '</p>' : '') + '</div>' +
+      '<form class="card mt-3" data-form="supabase-config"><h3>Conexão</h3><div class="form-grid mt-3">' +
+      '<label class="field"><span>Project URL</span><input name="url" value="' + esc(c.url) + '" placeholder="https://xxxx.supabase.co"></label>' +
+      '<label class="field"><span>anon / public key</span><input name="anonKey" value="' + esc(c.anonKey) + '" placeholder="eyJhbGci..."></label></div>' +
+      '<p class="small muted mt-2">A anon key é pública e pode ficar no front-end. Nunca coloque a <strong>service_role</strong> aqui — ela deve permanecer apenas no servidor.</p>' +
+      '<div class="row wrap mt-3"><button class="btn btn-primary" type="submit">Salvar e conectar</button>' +
+      '<button class="btn" type="button" data-act="sb-connect"' + (sbReady() ? '' : ' disabled') + '>Testar conexão</button>' +
+      '<button class="btn" type="button" data-act="sb-publish"' + (sbReady() ? '' : ' disabled') + '>Publicar dados iniciais</button>' +
+      '<button class="btn btn-danger" type="button" data-act="sb-test"' + (sbReady() && !(test && test.running) ? '' : ' disabled') + '>' + (test && test.running ? 'Testando...' : 'Testar insert/exclusão') + '</button></div></form>' +
+      (test ? '<div class="card mt-3"><div class="row-between"><h3>Resultado do teste</h3><span class="badge ' + (test.running ? 'warn' : test.ok ? 'ok' : 'bad') + '">' + (test.running ? 'em andamento' : test.ok ? 'passou' : 'falhou') + '</span></div><div class="mt-3">' +
+        test.steps.map(function (s) { return '<div class="row-between small" style="padding:8px 0;border-bottom:1px solid var(--border)"><span>' + esc(s.text) + '</span><span style="color:' + (s.ok ? 'var(--gold)' : 'var(--danger)') + '">' + (s.ok ? 'OK' : 'FALHA') + '</span></div>'; }).join('') +
+        '</div></div>' : '') +
+      '<p class="muted small mt-3">Antes de usar, execute <code>supabase.sql</code> no SQL Editor do projeto para criar as tabelas e as políticas RLS. O teste cria um usuário e um produto temporários, consulta ambos e depois os exclui. Também é possível rodar <code>node test-supabase.mjs</code> no terminal.</p></div>';
+  }
+
   function viewAdmin() {
     if (!isAdmin()) return viewAuth(true);
-    var tabs = [['dashboard', 'Dashboard'], ['agenda', 'Agenda'], ['services', 'Serviços'], ['products', 'Produtos'], ['barbers', 'Barbeiros'], ['rewards', 'Recompensas'], ['reviews', 'Avaliações'], ['loyalty', 'Fidelidade'], ['settings', 'Configurações']];
+    var tabs = [['dashboard', 'Dashboard'], ['agenda', 'Agenda'], ['users', 'Usuários'], ['services', 'Serviços'], ['products', 'Produtos'], ['barbers', 'Barbeiros'], ['rewards', 'Recompensas'], ['reviews', 'Avaliações'], ['loyalty', 'Fidelidade'], ['supabase', 'Supabase'], ['settings', 'Configurações']];
     var body;
     switch (ui.adminTab) {
       case 'agenda': body = adminAgenda(); break;
+      case 'users': body = adminCRUD('users'); break;
       case 'services': body = adminCRUD('services'); break;
       case 'products': body = adminCRUD('products'); break;
       case 'barbers': body = adminCRUD('barbers'); break;
       case 'rewards': body = adminCRUD('rewards'); break;
       case 'reviews': body = adminReviews(); break;
       case 'loyalty': body = adminLoyalty(); break;
+      case 'supabase': body = adminSupabase(); break;
       case 'settings': body = adminSettings(); break;
       default: body = adminDashboard();
     }
     return '<section class="container section"><div class="row-between wrap"><div><div class="eyebrow">Área restrita</div><h1>Painel Administrativo</h1></div><button class="btn" data-act="admin-exit">' + ic('logout', 15) + ' Sair do painel</button></div>' +
-      '<div class="admin-layout mt-4"><aside class="card admin-side">' + tabs.map(function (t) { return '<button class="' + (ui.adminTab === t[0] ? 'active' : '') + '" data-act="admin-tab" data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</aside><div class="panel panel-pad">' + body + '</div></div></section>' + adminFormHTML() +
+      '<div class="admin-layout mt-4"><aside class="card admin-side">' + tabs.map(function (t) { return '<button class="' + (ui.adminTab === t[0] ? 'active' : '') + '" data-act="admin-tab" data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</aside><div class="panel panel-pad">' + body + '</div></div></section>' +
       '<style>@media(max-width:900px){.admin-layout{grid-template-columns:1fr}}</style>';
   }
 
@@ -1018,20 +1209,33 @@
       }
       case 'logout': logout(); nav('home'); break;
       case 'admin-tab': ui.adminTab = el.getAttribute('data-tab'); renderView(); break;
-      case 'admin-new': ui.adminForm = { kind: el.getAttribute('data-kind'), id: null, values: {} }; renderView(); break;
+      case 'admin-new': {
+        var kindNew = el.getAttribute('data-kind');
+        var hasActive = CRUD[kindNew].fields.some(function (f) { return f.k === 'active'; });
+        ui.adminForm = { kind: kindNew, id: null, values: hasActive ? { active: true } : {} };
+        renderView();
+        break;
+      }
       case 'admin-edit': {
         var kind = el.getAttribute('data-kind');
         ui.adminForm = { kind: kind, id: id, values: clone(state[CRUD[kind].key].find(function (x) { return x.id === id; }) || {}) };
+        if (kind === 'users') ui.adminForm.values.password = '';
         renderView();
         break;
       }
       case 'admin-form-close': ui.adminForm = null; renderView(); break;
       case 'admin-delete': {
         var k2 = el.getAttribute('data-kind');
+        if (k2 === 'users' && state.currentUser && state.currentUser.id === id) {
+          notify('Não é possível excluir o usuário que está logado.', 'error');
+          break;
+        }
         if (window.confirm('Excluir este item?')) {
           state[CRUD[k2].key] = state[CRUD[k2].key].filter(function (x) { return x.id !== id; });
           if (k2 === 'products') state.cart = state.cart.filter(function (i) { return i.productId !== id; });
-          persist(); render(); notify('Item removido.', 'info');
+          persist();
+          if (k2 === 'users' || k2 === 'products') sbRemove(k2, id);
+          render(); notify(k2 === 'users' ? 'Usuário removido.' : 'Item removido.', 'info');
         }
         break;
       }
@@ -1049,6 +1253,14 @@
       case 'admin-reset':
         if (window.confirm('Restaurar todos os dados de demonstração?')) resetDemo();
         break;
+      case 'sb-connect':
+        sbLoad().then(function (ok) {
+          notify(ok ? 'Conexão com o Supabase OK.' : 'Falha ao conectar: ' + (sb.error || 'verifique URL, chave e tabelas.'), ok ? 'success' : 'error');
+          renderView();
+        });
+        break;
+      case 'sb-publish': sbPublishSeed(); break;
+      case 'sb-test': sbSelfTest(); break;
       case 'admin-exit': nav('home'); break;
     }
   });
@@ -1074,25 +1286,53 @@
       case 'admin-form':
         if (!ui.adminForm) return;
         cfg = CRUD[ui.adminForm.kind];
+        var syncedKind = ui.adminForm.kind;
         obj = {};
         cfg.fields.forEach(function (field) {
           if (field.t === 'check') obj[field.k] = fd.has(field.k);
           else if (field.t === 'number') obj[field.k] = Number(fd.get(field.k) || 0);
           else obj[field.k] = String(fd.get(field.k) || '').trim();
         });
-        if (ui.adminForm.kind === 'barbers') obj.workDays = String(obj.workDays).split(',').map(Number).filter(function (n) { return n >= 0 && n <= 6 && !isNaN(n); });
+        if (syncedKind === 'barbers') obj.workDays = String(obj.workDays).split(',').map(Number).filter(function (n) { return n >= 0 && n <= 6 && !isNaN(n); });
         if (cfg.fields.some(function (x) { return x.k === 'promoPrice'; }) && !obj.promoPrice) delete obj.promoPrice;
+        if (syncedKind === 'users') {
+          obj.email = String(obj.email || '').trim().toLowerCase();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(obj.email)) { notify('E-mail inválido.', 'error'); return; }
+          if (state.users.some(function (x) { return x.id !== ui.adminForm.id && x.email.toLowerCase() === obj.email; })) {
+            notify('Já existe um usuário com este e-mail.', 'error'); return;
+          }
+          if (!obj.password && ui.adminForm.id) {
+            var existingUser = state.users.find(function (x) { return x.id === ui.adminForm.id; });
+            if (existingUser) obj.password = existingUser.password;
+          }
+          if (!obj.password) { notify('Informe a senha do usuário.', 'error'); return; }
+        }
         if (ui.adminForm.id) {
           item = state[cfg.key].find(function (x) { return x.id === ui.adminForm.id; });
           if (item) Object.keys(obj).forEach(function (k) { item[k] = obj[k]; });
           notify('Item atualizado.');
         } else {
           obj.id = uid(cfg.prefix);
+          if (syncedKind === 'users') obj.createdAt = iso(0);
           state[cfg.key].unshift(obj);
           notify('Item cadastrado com sucesso.');
         }
+        if (syncedKind === 'users' || syncedKind === 'products') sbUpsert(syncedKind, item || obj);
         ui.adminForm = null; persist(); render();
         break;
+      case 'supabase-config': {
+        var cfgUrl = String(fd.get('url') || '').trim().replace(/\/+$/, '');
+        var cfgKey = String(fd.get('anonKey') || '').trim();
+        try { localStorage.setItem(SB_CONFIG_KEY, JSON.stringify({ url: cfgUrl, anonKey: cfgKey })); } catch (e) { /* ignore */ }
+        sb.checked = false; sb.ok = false; sb.error = '';
+        notify('Configuração salva. Conectando...', 'info');
+        renderView();
+        sbLoad().then(function (ok) {
+          notify(ok ? 'Conectado ao Supabase.' : 'Não foi possível conectar: ' + (sb.error || 'verifique URL, chave e tabelas.'), ok ? 'success' : 'error');
+          renderView();
+        });
+        break;
+      }
       case 'settings': {
         var s = state.settings;
         ['shopName', 'tagline', 'phone', 'whatsappUrl', 'instagramHandle', 'address', 'neighborhood', 'customLogoUrl', 'topNoticeText'].forEach(function (k) { s[k] = String(fd.get(k) || '').trim(); });
