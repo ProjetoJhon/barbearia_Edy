@@ -82,10 +82,11 @@ Não há `package.json`, `node_modules`, transpilação ou build. Usuários e pr
 ### Painel administrativo
 
 - Dashboard com indicadores.
-- Gestão da agenda e status de agendamentos.
-- CRUD de usuários, serviços, produtos, barbeiros e recompensas.
-- Moderação de avaliações e configuração de fidelidade.
-- CMS de configurações gerais da loja.
+- Gestão da agenda, status de agendamentos e marcação de pagamento recebido.
+- Gestão de pedidos: status de entrega e pagamento pago/pendente.
+- CRUD de usuários, serviços, produtos, barbeiros e recompensas, com sincronização remota dos produtos.
+- Avaliações e comentários: responder, editar, ocultar/aprovar e excluir avaliações; editar e excluir respostas. As respostas aparecem na página inicial.
+- Configuração de fidelidade e CMS geral da loja.
 - Aba **Supabase** com status, configuração, publicação de dados iniciais e teste de insert/exclusão.
 
 ### Infraestrutura
@@ -284,6 +285,16 @@ OK   Excluir produto de teste
 
 Resultado: SUCESSO (9/9 etapas)
 ```
+
+### Validação das permissões do painel
+
+Com a conta admin autenticada no Supabase Auth, foram validados no navegador:
+
+- **Produtos:** criar, editar e excluir pelo CRUD, com confirmação da exclusão remota via REST/RLS.
+- **Pedidos e pagamentos:** marcar pagamento pago/pendente e alterar status de entrega; entregar um pedido pendente marca o pagamento como pago automaticamente.
+- **Agenda:** marcar agendamento como pago e confirmar o recebimento.
+- **Avaliações:** responder, editar resposta, excluir resposta, editar comentário, ocultar/aprovar e excluir avaliação; a resposta aparece na página inicial.
+- **Teste negativo:** deslogado, tentativas de alterar pedido, responder avaliação ou abrir formulário de CRUD são bloqueadas pelos guards de `isAdmin()`.
 
 ## API local (Python)
 
