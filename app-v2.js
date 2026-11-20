@@ -28,14 +28,14 @@
 
   var SEED = {
     users: [
-      { id: 'user-admin', name: 'Edy Oliveira (Admin)', email: 'admin@edyk.com', phone: '(11) 98254-1469', password: 'admin123', role: 'admin', createdAt: iso(-120) },
+      { id: 'user-admin', name: 'Edy Oliveira (Administrador)', email: 'admin@edyk.com', phone: '(11) 98254-1469', password: 'admin123', role: 'admin', createdAt: iso(-120) },
       { id: 'user-demo-client', name: 'Lucas Ferreira', email: 'cliente@edyk.com', phone: '(11) 97412-8830', password: '123456', role: 'client', createdAt: iso(-45) },
       { id: 'user-client-2', name: 'Matheus Almeida', email: 'matheus.a@email.com', phone: '(11) 96521-4410', password: '123456', role: 'client', createdAt: iso(-30) },
       { id: 'user-client-3', name: 'Gabriel Costa', email: 'gabriel.c@email.com', phone: '(11) 98104-2291', password: '123456', role: 'client', createdAt: iso(-18) },
       { id: 'user-client-4', name: 'Thiago Nogueira', email: 'thiago.n@email.com', phone: '(11) 99315-7704', password: '123456', role: 'client', createdAt: iso(-9) }
     ],
     services: [
-      { id: 'srv-1', name: 'Corte Degradê (Fade)', description: 'Degradê navalhado ou zero com acabamento preciso na navalha, lavagem e finalização com pomada premium.', price: 55, durationMinutes: 40, category: 'Cabelo', active: true, featured: true },
+      { id: 'srv-1', name: 'Corte Degradê', description: 'Degradê navalhado ou zero com acabamento preciso na navalha, lavagem e finalização com pomada premium.', price: 55, durationMinutes: 40, category: 'Cabelo', active: true, featured: true },
       { id: 'srv-2', name: 'Combo Corte + Barba', description: 'Nosso ritual completo: corte sob medida, modelagem de barba com toalha quente, óleo essencial e massagem facial.', price: 90, durationMinutes: 70, category: 'Combo', active: true, featured: true },
       { id: 'srv-3', name: 'Barba na Navalha', description: 'Alinhamento completo com espuma quente, vapor de ozônio, navalha tradicional e bálsamo pós-barba hidratante.', price: 45, durationMinutes: 35, category: 'Barba', active: true, featured: true },
       { id: 'srv-4', name: 'Corte Social na Tesoura', description: 'Corte clássico executado inteiramente na tesoura, respeitando caimento natural e textura dos fios.', price: 60, durationMinutes: 45, category: 'Cabelo', active: true, featured: true },
@@ -43,14 +43,14 @@
       { id: 'srv-6', name: 'Pigmentação & Acabamento Black', description: 'Realce natural para contornos de cabelo e barba com fixação prolongada e acabamento impecável.', price: 40, durationMinutes: 25, category: 'Acabamento', active: true }
     ],
     barbers: [
-      { id: 'barber-1', name: 'Edy Oliveira', specialty: 'Fundador · Master Fade & Visagismo', bio: 'Mais de 10 anos definindo o padrão de precisão da Barbearia Edyk. Especialista em degradê navalhado e consultoria de estilo.', photo: IMG.edy, rating: 4.98, completedCuts: 1420, workDays: [2, 3, 4, 5, 6], startHour: '09:00', endHour: '20:00', active: true },
+      { id: 'barber-1', name: 'Edy Oliveira', specialty: 'Fundador · Degradê avançado e visagismo', bio: 'Mais de 10 anos definindo o padrão de precisão da Barbearia Edyk. Especialista em degradê navalhado e consultoria de estilo.', photo: IMG.edy, rating: 4.98, completedCuts: 1420, workDays: [2, 3, 4, 5, 6], startHour: '09:00', endHour: '20:00', active: true },
       { id: 'barber-2', name: 'Matheus Silva', specialty: 'Barba & Corte Clássico', bio: 'Especialista em barba com toalha quente, navalha tradicional e cortes clássicos executados na tesoura.', photo: IMG.matheus, rating: 4.97, completedCuts: 1105, workDays: [2, 3, 4, 5, 6, 0], startHour: '09:00', endHour: '19:00', active: true }
     ],
     products: [
       { id: 'prod-1', name: 'Pomada Matte Black Gold 120g', description: 'Fixação alta com efeito seco natural e zero resíduos. Fragrância amadeirada exclusiva EDY-K.', category: 'Pomadas', price: 68, promoPrice: 54.9, stock: 14, image: IMG.pomade, active: true, featured: true },
       { id: 'prod-2', name: 'Óleo para Barba Elixir Âmbar 30ml', description: 'Blend nutritivo de argan, jojoba e cedro. Alinha, perfuma e elimina o ressecamento dos fios da barba.', category: 'Óleos para Barba', price: 59.9, stock: 9, image: IMG.oil, active: true, featured: true },
       { id: 'prod-3', name: 'Shampoo Detox Carvão & Mentol 250ml', description: 'Limpeza profunda para cabelo e barba com sensação refrescante imediata e controle de oleosidade.', category: 'Shampoos', price: 49.9, promoPrice: 42.9, stock: 18, image: IMG.shampoo, active: true, featured: true },
-      { id: 'prod-4', name: 'Kit Executivo EDY-K Signature', description: 'Caixa rígida colecionável com Pomada Matte, Óleo Elixir, Pente de Madeira Nobre e Navalhete Dourado.', category: 'Kits', price: 219, promoPrice: 179.9, stock: 5, image: IMG.kit, active: true, featured: true },
+      { id: 'prod-4', name: 'Kit Executivo EDY-K Exclusivo', description: 'Caixa rígida colecionável com Pomada Matte, Óleo Elixir, Pente de Madeira Nobre e Navalhete Dourado.', category: 'Kits', price: 219, promoPrice: 179.9, stock: 5, image: IMG.kit, active: true, featured: true },
       { id: 'prod-5', name: 'Pomada Teia Efeito Brilho 100g', description: 'Modelagem flexível com fibras elásticas ideal para topetes estruturados e penteados clássicos.', category: 'Pomadas', price: 62, stock: 11, image: IMG.pomade, active: true },
       { id: 'prod-6', name: 'Óleo Reserve Sandalo & Oud 30ml', description: 'Notas sofisticadas de sândalo e especiarias com toque seco de absorção rápida para barbas longas.', category: 'Óleos para Barba', price: 69.9, stock: 3, image: IMG.oil, active: true },
       { id: 'prod-7', name: 'Shampoo Hidratante Barba Macia 250ml', description: 'Fórmula suave com pantenol e extrato de cevada que amacia fios grossos desde a primeira lavagem.', category: 'Shampoos', price: 52, stock: 12, image: IMG.shampoo, active: true },
@@ -81,38 +81,38 @@
     },
     appointments: [
       { id: 'apt-101', userId: 'user-demo-client', clientName: 'Lucas Ferreira', clientPhone: '(11) 97412-8830', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', servicePrice: 90, serviceDuration: 70, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(1), time: '15:00', status: 'confirmed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-1) },
-      { id: 'apt-102', userId: 'user-client-2', clientName: 'Matheus Almeida', clientPhone: '(11) 96521-4410', serviceId: 'srv-1', serviceName: 'Corte Degradê (Fade)', servicePrice: 55, serviceDuration: 40, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(0), time: '11:00', status: 'confirmed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-2) },
+      { id: 'apt-102', userId: 'user-client-2', clientName: 'Matheus Almeida', clientPhone: '(11) 96521-4410', serviceId: 'srv-1', serviceName: 'Corte Degradê', servicePrice: 55, serviceDuration: 40, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(0), time: '11:00', status: 'confirmed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-2) },
       { id: 'apt-103', userId: 'user-client-3', clientName: 'Gabriel Costa', clientPhone: '(11) 98104-2291', serviceId: 'srv-3', serviceName: 'Barba na Navalha', servicePrice: 45, serviceDuration: 35, barberId: 'barber-3', barberName: 'Ricardo Silva', date: iso(0), time: '14:00', status: 'pending', paymentMethod: 'in_shop', paymentStatus: 'pending', createdAt: iso(-1) },
       { id: 'apt-104', userId: 'user-client-4', clientName: 'Thiago Nogueira', clientPhone: '(11) 99315-7704', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', servicePrice: 90, serviceDuration: 70, barberId: 'barber-2', barberName: 'Kauê Mendes', date: iso(0), time: '16:30', status: 'confirmed', paymentMethod: 'credit_card', paymentStatus: 'paid', installments: 2, createdAt: iso(-1) },
-      { id: 'apt-105', userId: 'user-demo-client', clientName: 'Lucas Ferreira', clientPhone: '(11) 97412-8830', serviceId: 'srv-1', serviceName: 'Corte Degradê (Fade)', servicePrice: 55, serviceDuration: 40, barberId: 'barber-2', barberName: 'Kauê Mendes', date: iso(-4), time: '18:00', status: 'completed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-6) },
+      { id: 'apt-105', userId: 'user-demo-client', clientName: 'Lucas Ferreira', clientPhone: '(11) 97412-8830', serviceId: 'srv-1', serviceName: 'Corte Degradê', servicePrice: 55, serviceDuration: 40, barberId: 'barber-2', barberName: 'Kauê Mendes', date: iso(-4), time: '18:00', status: 'completed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-6) },
       { id: 'apt-106', userId: 'user-client-2', clientName: 'Matheus Almeida', clientPhone: '(11) 96521-4410', serviceId: 'srv-4', serviceName: 'Corte Social na Tesoura', servicePrice: 60, serviceDuration: 45, barberId: 'barber-3', barberName: 'Ricardo Silva', date: iso(-2), time: '10:30', status: 'completed', paymentMethod: 'credit_card', paymentStatus: 'paid', createdAt: iso(-3) },
       { id: 'apt-107', userId: 'user-client-3', clientName: 'Gabriel Costa', clientPhone: '(11) 98104-2291', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', servicePrice: 90, serviceDuration: 70, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(-1), time: '17:00', status: 'completed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-3) },
-      { id: 'apt-108', userId: 'user-client-4', clientName: 'Thiago Nogueira', clientPhone: '(11) 99315-7704', serviceId: 'srv-1', serviceName: 'Corte Degradê (Fade)', servicePrice: 55, serviceDuration: 40, barberId: 'barber-2', barberName: 'Kauê Mendes', date: iso(-3), time: '15:30', status: 'completed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-5) },
+      { id: 'apt-108', userId: 'user-client-4', clientName: 'Thiago Nogueira', clientPhone: '(11) 99315-7704', serviceId: 'srv-1', serviceName: 'Corte Degradê', servicePrice: 55, serviceDuration: 40, barberId: 'barber-2', barberName: 'Kauê Mendes', date: iso(-3), time: '15:30', status: 'completed', paymentMethod: 'pix', paymentStatus: 'paid', createdAt: iso(-5) },
       { id: 'apt-109', userId: 'user-client-2', clientName: 'Matheus Almeida', clientPhone: '(11) 96521-4410', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', servicePrice: 90, serviceDuration: 70, barberId: 'barber-1', barberName: 'Edy Oliveira', date: iso(-5), time: '13:00', status: 'completed', paymentMethod: 'credit_card', paymentStatus: 'paid', createdAt: iso(-7) }
     ],
     orders: [
       { id: 'ord-501', userId: 'user-demo-client', clientName: 'Lucas Ferreira', clientPhone: '(11) 97412-8830', items: [{ productId: 'prod-1', name: 'Pomada Matte Black Gold 120g', price: 54.9, quantity: 1, image: IMG.pomade }, { productId: 'prod-2', name: 'Óleo para Barba Elixir Âmbar 30ml', price: 59.9, quantity: 1, image: IMG.oil }], subtotal: 114.8, deliveryFee: 0, total: 114.8, fulfillment: 'pickup', paymentMethod: 'pix', paymentStatus: 'paid', status: 'ready', createdAt: iso(-1) },
-      { id: 'ord-502', userId: 'user-client-3', clientName: 'Gabriel Costa', clientPhone: '(11) 98104-2291', items: [{ productId: 'prod-4', name: 'Kit Executivo EDY-K Signature', price: 179.9, quantity: 1, image: IMG.kit }], subtotal: 179.9, deliveryFee: 0, total: 179.9, fulfillment: 'delivery', deliveryAddress: 'R. Juiz de Fora, 279', paymentMethod: 'credit_card', paymentStatus: 'paid', installments: 3, status: 'delivered', createdAt: iso(-3) },
+      { id: 'ord-502', userId: 'user-client-3', clientName: 'Gabriel Costa', clientPhone: '(11) 98104-2291', items: [{ productId: 'prod-4', name: 'Kit Executivo EDY-K Exclusivo', price: 179.9, quantity: 1, image: IMG.kit }], subtotal: 179.9, deliveryFee: 0, total: 179.9, fulfillment: 'delivery', deliveryAddress: 'R. Juiz de Fora, 279', paymentMethod: 'credit_card', paymentStatus: 'paid', installments: 3, status: 'delivered', createdAt: iso(-3) },
       { id: 'ord-503', userId: 'user-client-4', clientName: 'Thiago Nogueira', clientPhone: '(11) 99315-7704', items: [{ productId: 'prod-3', name: 'Shampoo Detox Carvão & Mentol 250ml', price: 42.9, quantity: 2, image: IMG.shampoo }], subtotal: 85.8, deliveryFee: 0, total: 85.8, fulfillment: 'pickup', paymentMethod: 'pix', paymentStatus: 'paid', status: 'delivered', createdAt: iso(-5) }
     ],
     reviews: [
       { id: 'rev-1', appointmentId: 'apt-107', userId: 'user-client-3', clientName: 'Gabriel Costa', barberId: 'barber-1', barberName: 'Edy Oliveira', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', serviceRating: 5, barberRating: 5, comment: '"Qualidade existe quando há atenção aos mínimos detalhes."', status: 'approved', createdAt: iso(-1) },
-      { id: 'rev-2', appointmentId: 'apt-108', userId: 'user-client-4', clientName: 'Thiago Nogueira', barberId: 'barber-2', barberName: 'Kauê Mendes', serviceId: 'srv-1', serviceName: 'Corte Degradê (Fade)', serviceRating: 5, barberRating: 5, comment: 'O Edy manda muito bem no low fade e no acabamento. Ambiente top e atendimento rápido.', status: 'approved', createdAt: iso(-3) },
+      { id: 'rev-2', appointmentId: 'apt-108', userId: 'user-client-4', clientName: 'Thiago Nogueira', barberId: 'barber-2', barberName: 'Kauê Mendes', serviceId: 'srv-1', serviceName: 'Corte Degradê', serviceRating: 5, barberRating: 5, comment: 'O Edy manda muito bem no degradê baixo e no acabamento. Ambiente top e atendimento rápido.', status: 'approved', createdAt: iso(-3) },
       { id: 'rev-3', appointmentId: 'apt-106', userId: 'user-client-2', clientName: 'Matheus Almeida', barberId: 'barber-3', barberName: 'Ricardo Silva', serviceId: 'srv-4', serviceName: 'Corte Social na Tesoura', serviceRating: 5, barberRating: 5, comment: 'Corte todo na tesoura muito bem alinhado, respeitou o caimento natural do cabelo. Recomendo demais.', status: 'approved', createdAt: iso(-2) },
       { id: 'rev-4', appointmentId: 'apt-109', userId: 'user-client-2', clientName: 'Matheus Almeida', barberId: 'barber-1', barberName: 'Edy Oliveira', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', serviceRating: 5, barberRating: 5, comment: 'Sempre saio satisfeito. Agendei pelo app, paguei no Pix e não esperei nem 2 minutos.', status: 'approved', createdAt: iso(-5) }
     ],
     loyaltyConfig: { enabled: true, pointsPerRealService: 2, bookingBonusPoints: 25, pointsPerRealProduct: 1, productBonusPoints: 15 },
     rewards: [
       { id: 'rew-1', title: 'Desconto de R$ 15 em Serviços', description: 'Válido para qualquer corte, barba ou combo agendado pelo app.', pointsCost: 150, discountAmount: 15, appliesTo: 'service', active: true },
-      { id: 'rew-2', title: 'R$ 20 OFF na Loja EDY-K', description: 'Use na compra de pomadas, óleos para barba, shampoos ou kits.', pointsCost: 180, discountAmount: 20, appliesTo: 'product', active: true },
+      { id: 'rew-2', title: 'R$ 20 de desconto na Loja EDY-K', description: 'Use na compra de pomadas, óleos para barba, shampoos ou kits.', pointsCost: 180, discountAmount: 20, appliesTo: 'product', active: true },
       { id: 'rew-3', title: 'Desconto VIP de R$ 35', description: 'Benefício flexível válido tanto para serviços na cadeira quanto produtos.', pointsCost: 320, discountAmount: 35, appliesTo: 'both', active: true },
-      { id: 'rew-4', title: 'Combo Corte + Barba (R$ 50 OFF)', description: 'Recompensa máxima para clientes frequentes da Barbearia Edyk.', pointsCost: 500, discountAmount: 50, appliesTo: 'service', active: true }
+      { id: 'rew-4', title: 'Combo Corte + Barba (R$ 50 de desconto)', description: 'Recompensa máxima para clientes frequentes da Barbearia Edyk.', pointsCost: 500, discountAmount: 50, appliesTo: 'service', active: true }
     ],
     redeemedRewards: [
       { id: 'red-1', code: 'EDYK-VIP15', userId: 'user-demo-client', rewardId: 'rew-1', rewardTitle: 'Desconto de R$ 15 em Serviços', discountAmount: 15, appliesTo: 'service', pointsSpent: 150, status: 'available', redeemedAt: iso(-2) }
     ],
     pointTransactions: [
-      { id: 'ptx-1', userId: 'user-demo-client', type: 'earn', points: 135, description: 'Agendamento: Corte Degradê (Fade)', referenceId: 'apt-105', createdAt: iso(-4) },
+      { id: 'ptx-1', userId: 'user-demo-client', type: 'earn', points: 135, description: 'Agendamento: Corte Degradê', referenceId: 'apt-105', createdAt: iso(-4) },
       { id: 'ptx-2', userId: 'user-demo-client', type: 'earn', points: 205, description: 'Agendamento: Combo Corte + Barba', referenceId: 'apt-101', createdAt: iso(-1) },
       { id: 'ptx-3', userId: 'user-demo-client', type: 'earn', points: 130, description: 'Compra na Loja #ORD-501 (Pomada + Óleo)', referenceId: 'ord-501', createdAt: iso(-1) },
       { id: 'ptx-4', userId: 'user-demo-client', type: 'redeem', points: -150, description: 'Resgate: Desconto de R$ 15 em Serviços', referenceId: 'red-1', createdAt: iso(-2) }
@@ -212,6 +212,31 @@
   var state = {};
   Object.keys(SEED).forEach(function (k) { state[k] = load(k, SEED[k]); });
 
+  /* Migração pontual: troca textos antigos em inglês já salvos no navegador. */
+  function applyTranslations(list) {
+    var map = {
+      'Edy Oliveira (Admin)': 'Edy Oliveira (Administrador)',
+      'Corte Degradê (Fade)': 'Corte Degradê',
+      'Fundador · Master Fade & Visagismo': 'Fundador · Degradê avançado e visagismo',
+      'Kit Executivo EDY-K Signature': 'Kit Executivo EDY-K Exclusivo',
+      'R$ 20 OFF na Loja EDY-K': 'R$ 20 de desconto na Loja EDY-K',
+      'Combo Corte + Barba (R$ 50 OFF)': 'Combo Corte + Barba (R$ 50 de desconto)',
+      'O Edy manda muito bem no low fade': 'O Edy manda muito bem no degradê baixo'
+    };
+    function fix(v) {
+      if (typeof v === 'string') {
+        var out = v;
+        Object.keys(map).forEach(function (k) { out = out.split(k).join(map[k]); });
+        return out;
+      }
+      if (Array.isArray(v)) { v.forEach(function (x, i) { v[i] = fix(x); }); return v; }
+      if (v && typeof v === 'object') { Object.keys(v).forEach(function (k) { v[k] = fix(v[k]); }); return v; }
+      return v;
+    }
+    (list || Object.keys(state)).forEach(function (k) { state[k] = fix(state[k]); });
+  }
+  applyTranslations();
+
   var ui = {
     view: 'home', cartOpen: false, cartTab: 'cart', noticeDismissed: false,
     shopCat: 'Todos', aptTab: 'upcoming', authTab: 'login', adminTab: 'dashboard',
@@ -243,6 +268,42 @@
     };
   }
   function sbReady() { var c = sbConfig(); return !!(c.url && c.anonKey); }
+
+  function friendlyError(e) {
+    var raw = String((e && e.message) || e || '').trim();
+    var lower = raw.toLowerCase();
+    var known = [
+      ['invalid_credentials', 'E-mail ou senha incorretos.'],
+      ['email_not_confirmed', 'Confirme seu e-mail antes de entrar.'],
+      ['weak_password', 'A senha é muito fraca.'],
+      ['user_already_exists', 'Já existe uma conta com este e-mail.'],
+      ['signup_disabled', 'O cadastro está desabilitado.'],
+      ['rate limit', 'Muitas tentativas. Aguarde um momento e tente novamente.'],
+      ['too many requests', 'Muitas tentativas. Aguarde um momento e tente novamente.'],
+      ['permission denied', 'Você não tem permissão para esta ação.'],
+      ['row-level security', 'Você não tem permissão para esta ação.'],
+      ['jwt', 'A sessão expirou. Entre novamente.'],
+      ['unauthorized', 'Você precisa entrar novamente.'],
+      ['forbidden', 'Você não tem permissão para esta ação.'],
+      ['not found', 'Não foi possível encontrar o recurso solicitado.'],
+      ['failed to fetch', 'Não foi possível conectar. Verifique sua internet.'],
+      ['networkerror', 'Não foi possível conectar. Verifique sua internet.'],
+      ['permissão de administrador', 'A conta atual não tem permissão de administrador.'],
+      ['não configurado', 'O Supabase não está configurado.']
+    ];
+    for (var i = 0; i < known.length; i++) {
+      if (lower.indexOf(known[i][0]) >= 0) return known[i][1];
+    }
+    var http = raw.match(/HTTP\s+(\d{3})/i);
+    if (http) {
+      if (http[1] === '401') return 'Você precisa entrar novamente.';
+      if (http[1] === '403') return 'Você não tem permissão para esta ação.';
+      if (http[1] === '404') return 'Não foi possível encontrar o recurso solicitado.';
+      if (http[1] === '429') return 'Muitas tentativas. Aguarde um momento e tente novamente.';
+      return 'Não foi possível concluir a operação. Erro ' + http[1] + '.';
+    }
+    return raw ? 'Não foi possível concluir a operação. Tente novamente.' : 'Não foi possível concluir a operação.';
+  }
 
   /* ==== Supabase Auth ================================================== */
   var AUTH_SESSION_KEY = 'edyk_auth_session';
@@ -330,7 +391,7 @@
           return { ok: true, user: state.currentUser };
         });
       })
-      .catch(function (e) { return { ok: false, error: 'E-mail ou senha incorretos. ' + e.message }; });
+      .catch(function (e) { return { ok: false, error: friendlyError(e) }; });
   }
   function authSignup(data) {
     var body = {
@@ -347,7 +408,7 @@
         notify('Conta criada com sucesso! Seja bem-vindo à EDY-K.');
         return { ok: true, user: state.currentUser };
       });
-    }).catch(function (e) { return { ok: false, error: 'Não foi possível cadastrar: ' + e.message }; });
+    }).catch(function (e) { return { ok: false, error: friendlyError(e) }; });
   }
   function authLogout() {
     var token = authToken();
@@ -400,13 +461,13 @@
     var row = kind === 'users' ? userToRow(item) : productToRow(item);
     return sbRequest(table, 'POST', '?on_conflict=id', row)
       .then(function () { sb.ok = true; sb.error = ''; return true; })
-      .catch(function (e) { sb.ok = false; sb.error = e.message; notify('Falha ao salvar no Supabase (' + kind + '): ' + e.message, 'error'); return false; });
+      .catch(function (e) { var msg = friendlyError(e); sb.ok = false; sb.error = msg; notify('Falha ao salvar ' + kindLabel(kind) + ' no Supabase: ' + msg, 'error'); return false; });
   }
   function sbRemove(kind, id) {
     if (!sbReady()) return Promise.resolve(false);
     return sbRequest(kind === 'users' ? 'users' : 'products', 'DELETE', '?id=eq.' + encodeURIComponent(id))
       .then(function () { sb.ok = true; sb.error = ''; return true; })
-      .catch(function (e) { sb.ok = false; sb.error = e.message; notify('Falha ao excluir no Supabase (' + kind + '): ' + e.message, 'error'); return false; });
+      .catch(function (e) { var msg = friendlyError(e); sb.ok = false; sb.error = msg; notify('Falha ao excluir ' + kindLabel(kind) + ' no Supabase: ' + msg, 'error'); return false; });
   }
   function sbMerge(kind, rows) {
     var key = kind === 'users' ? 'users' : 'products';
@@ -434,6 +495,7 @@
       var changed = false;
       if (Array.isArray(usersRows) && usersRows.length) { state.users = sbMerge('users', usersRows); changed = true; }
       if (Array.isArray(productsRows) && productsRows.length) { state.products = sbMerge('products', productsRows); changed = true; }
+      if (changed) applyTranslations(['users', 'products']);
       if (changed) {
         if (state.currentUser) {
           state.currentUser = state.users.find(function (u) { return u.id === state.currentUser.id; }) || null;
@@ -442,22 +504,22 @@
       } else refreshStatus();
       return true;
     }).catch(function (e) {
-      sb.ok = false; sb.checked = true; sb.error = e.message;
+      sb.ok = false; sb.checked = true; sb.error = friendlyError(e);
       refreshStatus();
       return false;
     });
   }
   function sbPublishSeed() {
-    if (!sbReady()) { notify('Configure a URL e a chave anon antes.', 'error'); return; }
+    if (!sbReady()) { notify('Configure a URL e a chave pública antes.', 'error'); return; }
     if (!authToken()) { notify('Entre como administrador para publicar dados.', 'error'); return; }
     sbRequest('products', 'POST', '?on_conflict=id', SEED.products.map(productToRow)).then(function () {
       sb.ok = true; sb.error = '';
-      notify('Produtos iniciais publicados. Contas são criadas no Supabase Auth.');
+      notify('Produtos iniciais publicados. As contas são criadas na autenticação do Supabase.');
       return sbLoad();
-    }).catch(function (e) { sb.ok = false; sb.error = e.message; notify('Falha ao publicar: ' + e.message, 'error'); });
+    }).catch(function (e) { var msg = friendlyError(e); sb.ok = false; sb.error = msg; notify('Falha ao publicar: ' + msg, 'error'); });
   }
   function sbSelfTest() {
-    if (!sbReady()) { notify('Configure a URL e a chave anon antes.', 'error'); return; }
+    if (!sbReady()) { notify('Configure a URL e a chave pública antes.', 'error'); return; }
     var c = sbConfig();
     var stamp = Date.now().toString().slice(-7) + Math.floor(Math.random() * 90 + 10);
     var p = { id: 'test-prod-' + stamp, name: 'Produto Teste EDY-K', description: 'Registro temporário criado pelo teste', category: 'Kits', price: 10, stock: 1, image: 'assets/images/product-kit.jpg', active: true, featured: false };
@@ -478,26 +540,26 @@
       }).then(function (r) { return r.ok ? r.json() : []; }).then(function (r) { return Array.isArray(r) && r.length > 0; }).catch(function () { return false; });
     }
     function finish(ok, err) {
-      if (err) step('Erro: ' + err, false);
+      if (err) step('Erro: ' + friendlyError(err), false);
       del().then(gone).then(function (clean) {
         step('Excluir registro de teste', clean);
         ui.sbTest = { running: false, ok: ok && clean, steps: steps.slice() };
         sb.ok = sb.ok && ui.sbTest.ok;
         renderView();
-        notify(ui.sbTest.ok ? 'Teste de RLS/insert/exclusão concluído com sucesso.' : 'Teste com falhas — veja os detalhes no painel.', ui.sbTest.ok ? 'success' : 'error');
+        notify(ui.sbTest.ok ? 'Teste de acesso e inserção/exclusão concluído com sucesso.' : 'Teste com falhas — veja os detalhes no painel.', ui.sbTest.ok ? 'success' : 'error');
       });
     }
     if (!authToken()) {
       step('Sessão de administrador', false);
-      finish(false, 'Faça login com a conta admin do Supabase Auth.');
+      finish(false, 'Faça login com uma conta de administrador.');
       return;
     }
     sbRequest('rpc/is_admin', 'POST', '', {}).then(function (admin) {
-      step('Permissão de administrador no RLS', admin === true);
-      if (admin !== true) throw new Error('A conta atual não tem role admin no JWT.');
+      step('Permissão de administrador nas regras de acesso', admin === true);
+      if (admin !== true) throw new Error('A conta atual não tem permissão de administrador.');
       return sbRequest('products', 'POST', '?on_conflict=id', productToRow(p));
     }).then(function () {
-      step('Inserir produto de teste (admin)', true);
+      step('Inserir produto de teste (administrador)', true);
       return sbRequest('users', 'GET', '?select=id&id=eq.' + encodeURIComponent((state.currentUser || {}).id || ''));
     }).then(function (r) {
       step('Consultar próprio perfil', Array.isArray(r) && r.length > 0);
@@ -505,7 +567,7 @@
     }).then(function (visible) {
       step('Visitante vê produto ativo', visible);
       finish(true);
-    }).catch(function (e) { sb.ok = false; sb.error = e.message; finish(false, e.message); });
+    }).catch(function (e) { var msg = friendlyError(e); sb.ok = false; sb.error = msg; finish(false, msg); });
   }
 
   function persist() {
@@ -875,9 +937,30 @@
   function sectionHead(eyebrow, title, right) {
     return '<div class="section-head"><div><div class="eyebrow">' + eyebrow + '</div><h2>' + title + '</h2></div>' + (right || '') + '</div>';
   }
+  function statusLabel(s) {
+    var labels = {
+      pending: 'Pendente', confirmed: 'Confirmado', completed: 'Concluído', cancelled: 'Cancelado',
+      preparing: 'Em preparo', ready: 'Pronto', delivered: 'Entregue', paid: 'Pago',
+      active: 'Ativo', inactive: 'Inativo', approved: 'Aprovada', hidden: 'Oculta',
+      available: 'Disponível', used: 'Utilizado', expired: 'Expirado',
+      online: 'Conectado', offline: 'Desconectado', failed: 'Falhou'
+    };
+    return labels[s] || 'Sem status';
+  }
+  function kindLabel(kind) {
+    return kind === 'users' ? 'usuários' : kind === 'products' ? 'produtos' : kind;
+  }
+  function appliesToLabel(v) {
+    return v === 'service' ? 'Serviço' : v === 'product' ? 'Produto' : 'Todos';
+  }
   function statusBadge(s) {
-    var map = { pending: 'warn', confirmed: 'ok', completed: 'gold', cancelled: 'bad', preparing: 'warn', ready: 'ok', delivered: 'gold' };
-    return '<span class="badge ' + (map[s] || '') + '">' + esc(s) + '</span>';
+    var styles = {
+      pending: 'warn', confirmed: 'ok', completed: 'gold', cancelled: 'bad',
+      preparing: 'warn', ready: 'ok', delivered: 'gold', paid: 'ok',
+      active: 'ok', inactive: 'bad', approved: 'ok', hidden: 'bad',
+      available: 'ok', used: 'gold', expired: 'bad', online: 'ok', offline: 'warn', failed: 'bad'
+    };
+    return '<span class="badge ' + (styles[s] || '') + '">' + esc(statusLabel(s)) + '</span>';
   }
 
   function renderNotice() {
@@ -942,7 +1025,7 @@
     var h = '<div class="hero"><div class="hero-bg"><img src="' + IMG.hero + '" alt="Interior da EDY-K Barbershop"></div><div class="hero-content"><div class="hero-copy">' +
       '<div class="eyebrow">' + esc(s.shopName) + ' · ' + esc(s.neighborhood) + '</div>' +
       '<h1>"Qualidade existe quando há atenção aos mínimos detalhes."</h1>' +
-      '<p class="lead">Reserve seu horário em menos de 1 minuto com nosso APP. Pague via Pix, cartão ou após o corte.</p>' +
+      '<p class="lead">Reserve seu horário em menos de 1 minuto com nosso aplicativo. Pague via Pix, cartão ou após o corte.</p>' +
       '<div class="hero-cta"><button class="btn btn-primary btn-lg" data-act="book-start">' + ic('calendar', 18) + ' Agende Seu Horário</button>' +
       '<button class="btn btn-lg" data-act="nav" data-view="shop">' + ic('bag', 18) + ' Explorar Loja EDY-K</button></div></div>' +
       '<div class="proof">' +
@@ -976,7 +1059,7 @@
         }).join('') + '</div></section>';
     }
 
-    h += '<section class="section container">' + sectionHead('Grooming Oficial', 'Loja de Produtos', '<button class="link-btn" data-act="nav" data-view="shop">Ver catálogo completo ' + ic('arrow', 15) + '</button>') +
+    h += '<section class="section container">' + sectionHead('Linha de Cuidados', 'Loja de Produtos', '<button class="link-btn" data-act="nav" data-view="shop">Ver catálogo completo ' + ic('arrow', 15) + '</button>') +
       '<div class="grid grid-4">' + products.map(function (p) {
         var price = p.promoPrice != null ? p.promoPrice : p.price, out = p.stock <= 0;
         return '<article class="card product-card"><div class="product-img"><img src="' + esc(p.image) + '" alt="' + esc(p.name) + '"></div><div class="product-body"><div><div class="small muted mb-1">' + esc(p.category) + ' · ' + (out ? '<span style="color:var(--danger)">Esgotado</span>' : p.stock + ' em estoque') + '</div><h3>' + esc(p.name) + '</h3></div>' +
@@ -1064,7 +1147,7 @@
     var cats = ['Todos'];
     state.products.forEach(function (p) { if (cats.indexOf(p.category) < 0) cats.push(p.category); });
     var list = state.products.filter(function (p) { return p.active && (ui.shopCat === 'Todos' || p.category === ui.shopCat); });
-    return '<section class="container section"><div class="eyebrow">Grooming Oficial</div><h1>Loja EDY-K</h1><p class="muted mt-2">Produtos premium selecionados para sua rotina de cuidado masculino.</p>' +
+    return '<section class="container section"><div class="eyebrow">Linha de Cuidados</div><h1>Loja EDY-K</h1><p class="muted mt-2">Produtos premium selecionados para sua rotina de cuidado masculino.</p>' +
       '<div class="row wrap mt-4">' + cats.map(function (c) { return '<button class="chip ' + (ui.shopCat === c ? 'active' : '') + '" data-act="shop-cat" data-cat="' + esc(c) + '">' + esc(c) + '</button>'; }).join('') + '</div>' +
       '<div class="grid grid-4 mt-4">' + list.map(function (p) {
         var price = p.promoPrice != null ? p.promoPrice : p.price, out = p.stock <= 0;
@@ -1116,10 +1199,10 @@
     return '<section class="container section"><div class="eyebrow">Programa de Fidelidade</div><h1>Meus Prêmios</h1>' +
       '<div class="card mt-4" style="background:linear-gradient(120deg,#18191C,#2a2415);border-color:rgba(226,183,67,.45)"><div class="row-between wrap"><div><div class="eyebrow">Saldo disponível</div><div class="display gold" style="font-size:48px">' + balance + ' <span class="small">pontos</span></div><p class="muted small mt-1">Acumule pontos a cada corte ou compra e troque por descontos exclusivos.</p></div><div style="font-size:60px;color:var(--gold)">' + ic('award', 60) + '</div></div></div>' +
       '<div class="mt-4">' + sectionHead('Resgate', 'Recompensas Disponíveis') + '<div class="grid grid-3">' + state.rewards.filter(function (r) { return r.active; }).map(function (r) {
-        return '<article class="card card-hover"><div class="row-between"><div class="eyebrow">' + esc(r.appliesTo) + '</div><span class="badge gold">' + r.pointsCost + ' pts</span></div><h3 class="mt-2">' + esc(r.title) + '</h3><p class="small muted mt-1">' + esc(r.description) + '</p><button class="btn btn-primary btn-block mt-3" data-act="redeem" data-id="' + r.id + '">' + (balance >= r.pointsCost ? 'Resgatar cupom' : 'Pontos insuficientes') + '</button></article>';
+        return '<article class="card card-hover"><div class="row-between"><div class="eyebrow">' + appliesToLabel(r.appliesTo) + '</div><span class="badge gold">' + r.pointsCost + ' pts</span></div><h3 class="mt-2">' + esc(r.title) + '</h3><p class="small muted mt-1">' + esc(r.description) + '</p><button class="btn btn-primary btn-block mt-3" data-act="redeem" data-id="' + r.id + '">' + (balance >= r.pointsCost ? 'Resgatar cupom' : 'Pontos insuficientes') + '</button></article>';
       }).join('') + '</div></div>' +
       '<div class="mt-4">' + sectionHead('Cupons', 'Meus Resgates') + (coupons.length ? '<div class="panel">' + coupons.map(function (c) {
-        return '<div class="row-between" style="padding:16px;border-bottom:1px solid var(--border);flex-wrap:wrap"><div><strong class="mono gold">' + esc(c.code) + '</strong><div class="small muted mt-1">' + esc(c.rewardTitle) + ' · ' + money(c.discountAmount) + ' OFF · ' + fmtDate(c.redeemedAt) + '</div></div>' + statusBadge(c.status) + '</div>';
+        return '<div class="row-between" style="padding:16px;border-bottom:1px solid var(--border);flex-wrap:wrap"><div><strong class="mono gold">' + esc(c.code) + '</strong><div class="small muted mt-1">' + esc(c.rewardTitle) + ' · ' + money(c.discountAmount) + ' de desconto · ' + fmtDate(c.redeemedAt) + '</div></div>' + statusBadge(c.status) + '</div>';
       }).join('') + '</div>' : '<div class="card empty">Você ainda não resgatou nenhum cupom.</div>') + '</div>' +
       '<div class="mt-4">' + sectionHead('Extrato', 'Histórico de Pontos') + '<div class="panel table-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Pontos</th></tr></thead><tbody>' +
       (txs.length ? txs.map(function (t) { return '<tr><td class="mono">' + fmtDate(t.createdAt) + '</td><td>' + esc(t.description) + '</td><td class="mono ' + (t.points >= 0 ? 'gold' : '') + '">' + (t.points > 0 ? '+' : '') + t.points + '</td></tr>'; }).join('') : '<tr><td colspan="3" class="center muted">Sem movimentações.</td></tr>') + '</tbody></table></div></div></section>';
@@ -1135,8 +1218,8 @@
     } else {
       h += '<form class="mt-3" data-form="login"><label class="field"><span>E-mail</span><input name="email" type="email" required placeholder="voce@email.com"></label><label class="field"><span>Senha</span><input name="password" type="password" required placeholder="Sua senha"></label><button class="btn btn-primary btn-block btn-lg" type="submit">Entrar</button></form>' +
         (sbReady()
-          ? '<p class="small muted mt-3">Acesso gerenciado pelo Supabase Auth. Use o e-mail e a senha cadastrados no Supabase.</p>'
-          : '<div class="divider"></div><div class="eyebrow center">Acesso rápido (demonstração)</div><div class="grid grid-2 mt-2"><button class="btn btn-sm" data-act="quick-login" data-email="cliente@edyk.com">Entrar como cliente</button><button class="btn btn-sm" data-act="quick-login" data-email="admin@edyk.com">Entrar como admin</button></div>');
+          ? '<p class="small muted mt-3">Acesso gerenciado pela autenticação do Supabase. Use o e-mail e a senha cadastrados no Supabase.</p>'
+          : '<div class="divider"></div><div class="eyebrow center">Acesso rápido (demonstração)</div><div class="grid grid-2 mt-2"><button class="btn btn-sm" data-act="quick-login" data-email="cliente@edyk.com">Entrar como cliente</button><button class="btn btn-sm" data-act="quick-login" data-email="admin@edyk.com">Entrar como administrador</button></div>');
     }
     return h + '</div></div></section>';
   }
@@ -1148,7 +1231,7 @@
     users: { title: 'Usuários', key: 'users', prefix: 'user', fields: [
       { k: 'name', l: 'Nome', t: 'text' }, { k: 'email', l: 'E-mail', t: 'text' },
       { k: 'phone', l: 'Telefone', t: 'text' }, { k: 'password', l: 'Senha', t: 'text' },
-      { k: 'role', l: 'Perfil', t: 'select', opts: ['client', 'admin'] }
+      { k: 'role', l: 'Perfil', t: 'select', opts: [{ v: 'client', l: 'Cliente' }, { v: 'admin', l: 'Administrador' }] }
     ] },
     services: { title: 'Serviços', key: 'services', prefix: 'srv', fields: [
       { k: 'name', l: 'Nome', t: 'text' }, { k: 'category', l: 'Categoria', t: 'select', opts: ['Cabelo', 'Barba', 'Combo', 'Acabamento'] },
@@ -1170,7 +1253,7 @@
     rewards: { title: 'Recompensas', key: 'rewards', prefix: 'rew', fields: [
       { k: 'title', l: 'Título', t: 'text' }, { k: 'description', l: 'Descrição', t: 'textarea' },
       { k: 'pointsCost', l: 'Custo em pontos', t: 'number' }, { k: 'discountAmount', l: 'Desconto (R$)', t: 'number' },
-      { k: 'appliesTo', l: 'Aplicável a', t: 'select', opts: ['service', 'product', 'both'] }, { k: 'active', l: 'Ativo', t: 'check' }
+      { k: 'appliesTo', l: 'Aplicável a', t: 'select', opts: [{ v: 'service', l: 'Serviço' }, { v: 'product', l: 'Produto' }, { v: 'both', l: 'Todos' }] }, { k: 'active', l: 'Ativo', t: 'check' }
     ] }
   };
 
@@ -1178,7 +1261,10 @@
     var v = val == null ? '' : val;
     if (f.t === 'check') return '<label class="checkbox-row"><input type="checkbox" name="' + f.k + '"' + (v ? ' checked' : '') + '> ' + esc(f.l) + '</label>';
     if (f.t === 'textarea') return '<label class="field"><span>' + esc(f.l) + '</span><textarea name="' + f.k + '">' + esc(v) + '</textarea></label>';
-    if (f.t === 'select') return '<label class="field"><span>' + esc(f.l) + '</span><select name="' + f.k + '">' + f.opts.map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></label>';
+    if (f.t === 'select') return '<label class="field"><span>' + esc(f.l) + '</span><select name="' + f.k + '">' + f.opts.map(function (o) {
+      var ov = typeof o === 'object' ? o.v : o, ol = typeof o === 'object' ? o.l : o;
+      return '<option value="' + esc(ov) + '"' + (ov === v ? ' selected' : '') + '>' + esc(ol) + '</option>';
+    }).join('') + '</select></label>';
     return '<label class="field"><span>' + esc(f.l) + '</span><input name="' + f.k + '" type="' + (f.t === 'number' ? 'number' : 'text') + '" step="any" value="' + esc(Array.isArray(v) ? v.join(',') : v) + '"></label>';
   }
 
@@ -1189,7 +1275,7 @@
     var values = f.values || {};
     return '<div class="modal-wrap"><div class="overlay" data-act="admin-form-close"></div><form class="modal" data-form="admin-form"><div class="row-between"><h2>' + (f.id ? 'Editar' : 'Novo') + ' · ' + cfg.title + '</h2><button type="button" class="icon-btn" data-act="admin-form-close">' + ic('x') + '</button></div>' +
       '<div class="form-grid mt-3">' + cfg.fields.filter(function (field) { return !(sbReady() && f.kind === 'users' && field.k === 'password'); }).map(function (field) { return fieldHTML(field, values[field.k]); }).join('') + '</div>' +
-      (f.kind === 'users' && sbReady() ? '<p class="small muted mt-2">Senha e role de acesso são gerenciados no Supabase Auth.</p>' : (f.kind === 'users' && f.id ? '<p class="small muted mt-2">Deixe a senha em branco para manter a atual.</p>' : '')) +
+      (f.kind === 'users' && sbReady() ? '<p class="small muted mt-2">Senha e perfil de acesso são gerenciados na autenticação do Supabase.</p>' : (f.kind === 'users' && f.id ? '<p class="small muted mt-2">Deixe a senha em branco para manter a atual.</p>' : '')) +
       '<div class="row mt-3"><button class="btn btn-primary" type="submit">Salvar</button><button class="btn" type="button" data-act="admin-form-close">Cancelar</button></div></form></div>';
   }
 
@@ -1204,11 +1290,11 @@
         return '<td>' + (Array.isArray(v) ? esc(v.join(',')) : esc(v)) + '</td>';
       }).join('');
       var status = isUsers
-        ? '<span class="badge ' + (item.role === 'admin' ? 'gold' : '') + '">' + esc(item.role === 'admin' ? 'admin' : 'client') + '</span>'
-        : statusBadge(item.active ? 'confirmed' : 'cancelled');
+        ? '<span class="badge ' + (item.role === 'admin' ? 'gold' : '') + '">' + (item.role === 'admin' ? 'Administrador' : 'Cliente') + '</span>'
+        : statusBadge(item.active ? 'active' : 'inactive');
       return '<tr>' + cells + '<td>' + status + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="admin-edit" data-kind="' + kind + '" data-id="' + item.id + '">' + ic('edit', 13) + '</button><button class="btn btn-sm btn-danger" data-act="admin-delete" data-kind="' + kind + '" data-id="' + item.id + '">' + ic('trash', 13) + '</button></div></td></tr>';
     }).join('');
-    return '<div class="row-between"><div><div class="eyebrow">' + (isUsers ? 'Banco de dados' : 'CMS') + '</div><h2>' + cfg.title + '</h2></div><button class="btn btn-primary" data-act="admin-new" data-kind="' + kind + '">' + ic('plus', 15) + ' Novo</button></div>' +
+    return '<div class="row-between"><div><div class="eyebrow">' + (isUsers ? 'Banco de dados' : 'Conteúdo') + '</div><h2>' + cfg.title + '</h2></div><button class="btn btn-primary" data-act="admin-new" data-kind="' + kind + '">' + ic('plus', 15) + ' Novo</button></div>' +
       '<div class="panel table-wrap mt-3"><table><thead><tr>' + heads + '<th>' + (isUsers ? 'Perfil' : 'Status') + '</th><th>Ações</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="center muted">Nenhum item cadastrado.</td></tr>') + '</tbody></table></div>' + adminFormHTML();
   }
 
@@ -1221,7 +1307,7 @@
       last7.push({ d: d, n: state.appointments.filter(function (a) { return a.date === d && a.status !== 'cancelled'; }).length });
     }
     var max = Math.max.apply(null, last7.map(function (x) { return x.n; }).concat([1]));
-    return '<div><div class="eyebrow">Visão Geral</div><h2>Dashboard</h2><div class="grid grid-4 mt-3">' +
+    return '<div><div class="eyebrow">Visão Geral</div><h2>Resumo</h2><div class="grid grid-4 mt-3">' +
       [['Agendamentos', state.appointments.length, 'calendar'], ['Receita de serviços', money(revenue), 'chart'], ['Pedidos na loja', state.orders.length, 'bag'], ['Receita da loja', money(ordersRevenue), 'bag']].map(function (k) {
         return '<div class="card"><div class="row muted small">' + ic(k[2], 16) + ' ' + k[0] + '</div><div class="display mt-2" style="font-size:24px">' + k[1] + '</div></div>';
       }).join('') + '</div>' +
@@ -1255,7 +1341,7 @@
       var replyForm = ui.reviewReplyFor === r.id
         ? '<form class="mt-2" data-form="review-reply" data-id="' + r.id + '"><textarea name="comment" rows="2" placeholder="Responder como EDY-K"></textarea><div class="row mt-1"><button class="btn btn-sm btn-primary" type="submit">Publicar resposta</button><button class="btn btn-sm" type="button" data-act="review-reply-cancel">Cancelar</button></div></form>'
         : '';
-      return '<tr><td class="mono">' + fmtDate(r.createdAt) + '</td><td>' + esc(r.clientName) + '<div class="small muted">' + esc(r.barberName) + '</div></td><td class="gold mono">' + r.serviceRating + '★ / ' + r.barberRating + '★</td><td style="max-width:340px">' + editForm + replies + replyForm + '</td><td>' + statusBadge(r.status === 'approved' ? 'confirmed' : 'cancelled') + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="review-reply-open" data-id="' + r.id + '">' + ic('edit', 13) + ' Responder</button><button class="btn btn-sm" data-act="review-edit-open" data-id="' + r.id + '">Editar</button><button class="btn btn-sm" data-act="review-moderate" data-id="' + r.id + '">' + (r.status === 'approved' ? 'Ocultar' : 'Aprovar') + '</button><button class="btn btn-sm btn-danger" data-act="review-delete" data-id="' + r.id + '">' + ic('trash', 13) + '</button></div></td></tr>';
+      return '<tr><td class="mono">' + fmtDate(r.createdAt) + '</td><td>' + esc(r.clientName) + '<div class="small muted">' + esc(r.barberName) + '</div></td><td class="gold mono">' + r.serviceRating + '★ / ' + r.barberRating + '★</td><td style="max-width:340px">' + editForm + replies + replyForm + '</td><td>' + statusBadge(r.status === 'approved' ? 'approved' : 'hidden') + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="review-reply-open" data-id="' + r.id + '">' + ic('edit', 13) + ' Responder</button><button class="btn btn-sm" data-act="review-edit-open" data-id="' + r.id + '">Editar</button><button class="btn btn-sm" data-act="review-moderate" data-id="' + r.id + '">' + (r.status === 'approved' ? 'Ocultar' : 'Aprovar') + '</button><button class="btn btn-sm btn-danger" data-act="review-delete" data-id="' + r.id + '">' + ic('trash', 13) + '</button></div></td></tr>';
     }).join('');
     return '<div><div class="row-between"><div><div class="eyebrow">Moderação</div><h2>Avaliações e comentários</h2></div><span class="badge ok">' + state.reviews.length + ' avaliação(ões)</span></div>' +
       '<p class="muted small mt-2">Você pode responder, editar, ocultar ou excluir avaliações. As respostas aparecem na página inicial.</p>' +
@@ -1267,7 +1353,7 @@
       var pay = o.paymentStatus === 'paid';
       var payLabel = o.paymentMethod === 'pix' ? 'Pix' : o.paymentMethod === 'credit_card' ? 'Cartão' : 'Na loja';
       var statuses = ['pending', 'preparing', 'ready', 'delivered', 'cancelled'];
-      return '<tr><td class="mono">' + fmtDate(o.createdAt) + '</td><td>' + esc(o.clientName) + '<div class="small muted">' + esc(o.clientPhone) + '</div></td><td>' + o.items.length + ' item(ns)</td><td class="mono">' + money(o.total) + '</td><td>' + esc(payLabel) + '</td><td><span class="badge ' + (pay ? 'ok' : 'warn') + '">' + (pay ? 'Pago' : 'Pendente') + '</span></td><td><select data-act="admin-order-payment" data-id="' + o.id + '" class="btn btn-sm"><option value="paid"' + (pay ? ' selected' : '') + '>Pago</option><option value="pending"' + (!pay ? ' selected' : '') + '>Pendente</option></select></td><td>' + statusBadge(o.status) + '</td><td><select data-act="admin-order-status" data-id="' + o.id + '" class="btn btn-sm">' + statuses.map(function (s) { return '<option value="' + s + '"' + (o.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></td></tr>';
+      return '<tr><td class="mono">' + fmtDate(o.createdAt) + '</td><td>' + esc(o.clientName) + '<div class="small muted">' + esc(o.clientPhone) + '</div></td><td>' + o.items.length + ' item(ns)</td><td class="mono">' + money(o.total) + '</td><td>' + esc(payLabel) + '</td><td><span class="badge ' + (pay ? 'ok' : 'warn') + '">' + (pay ? 'Pago' : 'Pendente') + '</span></td><td><select data-act="admin-order-payment" data-id="' + o.id + '" class="btn btn-sm"><option value="paid"' + (pay ? ' selected' : '') + '>Pago</option><option value="pending"' + (!pay ? ' selected' : '') + '>Pendente</option></select></td><td>' + statusBadge(o.status) + '</td><td><select data-act="admin-order-status" data-id="' + o.id + '" class="btn btn-sm">' + statuses.map(function (s) { return '<option value="' + s + '"' + (o.status === s ? ' selected' : '') + '>' + statusLabel(s) + '</option>'; }).join('') + '</select></td></tr>';
     }).join('');
     var faturado = state.orders.reduce(function (s, o) { return s + (o.paymentStatus === 'paid' ? o.total : 0); }, 0);
     return '<div><div class="row-between"><div><div class="eyebrow">Financeiro</div><h2>Pedidos e pagamentos</h2></div><div class="display" style="font-size:22px">' + money(faturado) + '</div></div>' +
@@ -1277,7 +1363,7 @@
 
   function adminSettings() {
     var s = state.settings;
-    return '<div><div class="eyebrow">CMS</div><h2>Configurações da Barbearia</h2><form class="card mt-3" data-form="settings"><div class="form-grid">' +
+    return '<div><div class="eyebrow">Conteúdo</div><h2>Configurações da Barbearia</h2><form class="card mt-3" data-form="settings"><div class="form-grid">' +
       [['shopName', 'Nome da loja'], ['tagline', 'Slogan'], ['phone', 'Telefone'], ['whatsappUrl', 'URL do WhatsApp'], ['instagramHandle', 'Instagram'], ['address', 'Endereço'], ['neighborhood', 'Bairro / Cidade'], ['customLogoUrl', 'URL do logo personalizado'], ['deliveryFee', 'Taxa de entrega (R$)'], ['freeDeliveryThreshold', 'Entrega grátis acima de (R$)']].map(function (f) {
         return '<label class="field"><span>' + f[1] + '</span><input name="' + f[0] + '" value="' + esc(s[f[0]]) + '"></label>';
       }).join('') + '</div><label class="checkbox-row mt-2"><input type="checkbox" name="topNoticeEnabled"' + (s.topNoticeEnabled ? ' checked' : '') + '> Exibir aviso no topo</label><label class="field mt-2"><span>Texto do aviso</span><input name="topNoticeText" value="' + esc(s.topNoticeText) + '"></label>' +
@@ -1299,32 +1385,32 @@
   function adminSupabase() {
     var c = sbConfig(), test = ui.sbTest;
     var partial = !sbReady() && !!(c.url || c.anonKey);
-    var status = partial ? 'Configuração incompleta — falta ' + (!c.url ? 'Project URL' : 'anon key')
+    var status = partial ? 'Configuração incompleta — falta ' + (!c.url ? 'URL do projeto' : 'chave pública')
       : !sbReady() ? 'Não configurado'
       : (!sb.checked ? 'Configurado — aguardando primeira conexão'
       : sb.ok ? 'Conectado' : 'Erro de conexão');
     var badge = !sbReady() ? 'warn' : (sb.checked && sb.ok ? 'ok' : (sb.checked ? 'bad' : 'warn'));
     return '<div><div class="eyebrow">Banco de dados</div><h2>Supabase</h2>' +
-      '<p class="muted small mt-2">Login/cadastro usam Supabase Auth. Perfis e produtos são protegidos por RLS: visitantes veem apenas produtos ativos; somente uma sessão admin pode gravar. Os demais dados (agendamentos, pedidos, pontos etc.) continuam locais.</p>' +
-      '<div class="card mt-3"><div class="row-between wrap"><div><div class="eyebrow">Status</div><h3 class="mt-1">' + esc(status) + '</h3></div><span class="badge ' + badge + '">' + esc(partial ? 'incompleto' : sbReady() ? (sb.checked ? (sb.ok ? 'online' : 'falhou') : 'configurado') : 'offline') + '</span></div>' +
+      '<p class="muted small mt-2">Login e cadastro usam a autenticação do Supabase. Perfis e produtos são protegidos por regras de acesso por linha: visitantes veem apenas produtos ativos e somente um administrador conectado pode gravar. Os demais dados (agendamentos, pedidos, pontos etc.) permanecem locais.</p>' +
+      '<div class="card mt-3"><div class="row-between wrap"><div><div class="eyebrow">Status</div><h3 class="mt-1">' + esc(status) + '</h3></div><span class="badge ' + badge + '">' + esc(partial ? 'Incompleto' : sbReady() ? (sb.checked ? (sb.ok ? 'Conectado' : 'Falhou') : 'Configurado') : 'Desconectado') + '</span></div>' +
       (sb.error ? '<p class="small mt-2" style="color:var(--danger);word-break:break-all">' + esc(sb.error) + '</p>' : '') + '</div>' +
       '<form class="card mt-3" data-form="supabase-config"><h3>Conexão</h3><div class="form-grid mt-3">' +
-      '<label class="field"><span>Project URL</span><input name="url" value="' + esc(c.url) + '" placeholder="https://xxxx.supabase.co"></label>' +
-      '<label class="field"><span>anon / public key</span><input name="anonKey" value="' + esc(c.anonKey) + '" placeholder="eyJhbGci..."></label></div>' +
-      '<p class="small muted mt-2">A anon key é pública e pode ficar no front-end. Nunca coloque a <strong>service_role</strong> aqui — ela deve permanecer apenas no servidor.</p>' +
+      '<label class="field"><span>URL do projeto</span><input name="url" value="' + esc(c.url) + '" placeholder="https://xxxx.supabase.co"></label>' +
+      '<label class="field"><span>Chave pública (anon)</span><input name="anonKey" value="' + esc(c.anonKey) + '" placeholder="eyJhbGci..."></label></div>' +
+      '<p class="small muted mt-2">A chave pública pode ficar no código do site. Nunca coloque a <strong>chave de serviço</strong> aqui — ela deve permanecer apenas no servidor.</p>' +
       '<div class="row wrap mt-3"><button class="btn btn-primary" type="submit">Salvar e conectar</button>' +
       '<button class="btn" type="button" data-act="sb-connect"' + (sbReady() ? '' : ' disabled') + '>Testar conexão</button>' +
       '<button class="btn" type="button" data-act="sb-publish"' + (sbReady() ? '' : ' disabled') + '>Publicar produtos iniciais</button>' +
-      '<button class="btn btn-danger" type="button" data-act="sb-test"' + (sbReady() && !(test && test.running) ? '' : ' disabled') + '>' + (test && test.running ? 'Testando...' : 'Testar insert/exclusão') + '</button></div></form>' +
-      (test ? '<div class="card mt-3"><div class="row-between"><h3>Resultado do teste</h3><span class="badge ' + (test.running ? 'warn' : test.ok ? 'ok' : 'bad') + '">' + (test.running ? 'em andamento' : test.ok ? 'passou' : 'falhou') + '</span></div><div class="mt-3">' +
-        test.steps.map(function (s) { return '<div class="row-between small" style="padding:8px 0;border-bottom:1px solid var(--border)"><span>' + esc(s.text) + '</span><span style="color:' + (s.ok ? 'var(--gold)' : 'var(--danger)') + '">' + (s.ok ? 'OK' : 'FALHA') + '</span></div>'; }).join('') +
+      '<button class="btn btn-danger" type="button" data-act="sb-test"' + (sbReady() && !(test && test.running) ? '' : ' disabled') + '>' + (test && test.running ? 'Testando...' : 'Testar inserção/exclusão') + '</button></div></form>' +
+      (test ? '<div class="card mt-3"><div class="row-between"><h3>Resultado do teste</h3><span class="badge ' + (test.running ? 'warn' : test.ok ? 'ok' : 'bad') + '">' + (test.running ? 'Em andamento' : test.ok ? 'Passou' : 'Falhou') + '</span></div><div class="mt-3">' +
+        test.steps.map(function (s) { return '<div class="row-between small" style="padding:8px 0;border-bottom:1px solid var(--border)"><span>' + esc(s.text) + '</span><span style="color:' + (s.ok ? 'var(--gold)' : 'var(--danger)') + '">' + (s.ok ? 'Passou' : 'Falhou') + '</span></div>'; }).join('') +
         '</div></div>' : '') +
-      '<p class="muted small mt-3">Execute <code>supabase.sql</code> no SQL Editor, crie os usuários no Supabase Auth e marque o admin conforme as instruções do README. O teste valida a permissão de admin, cria/consulta/exclui um produto temporário e confirma que um visitante anônimo vê apenas produtos ativos. No terminal, use <code>node test-supabase.mjs</code> com as credenciais do admin.</p></div>';
+      '<p class="muted small mt-3">Execute <code>supabase.sql</code> no editor de SQL, crie os usuários na autenticação do Supabase e marque o administrador conforme a documentação do projeto. O teste valida a permissão de administrador, cria/consulta/exclui um produto temporário e confirma que um visitante anônimo vê apenas produtos ativos. No terminal, use <code>node test-supabase.mjs</code> com as credenciais do administrador.</p></div>';
   }
 
   function viewAdmin() {
     if (!isAdmin()) return viewAuth(true);
-    var tabs = [['dashboard', 'Dashboard'], ['agenda', 'Agenda'], ['orders', 'Pedidos'], ['users', 'Usuários'], ['services', 'Serviços'], ['products', 'Produtos'], ['barbers', 'Barbeiros'], ['rewards', 'Recompensas'], ['reviews', 'Avaliações'], ['loyalty', 'Fidelidade'], ['supabase', 'Supabase'], ['settings', 'Configurações']];
+    var tabs = [['dashboard', 'Resumo'], ['agenda', 'Agenda'], ['orders', 'Pedidos'], ['users', 'Usuários'], ['services', 'Serviços'], ['products', 'Produtos'], ['barbers', 'Barbeiros'], ['rewards', 'Recompensas'], ['reviews', 'Avaliações'], ['loyalty', 'Fidelidade'], ['supabase', 'Supabase'], ['settings', 'Configurações']];
     var body;
     switch (ui.adminTab) {
       case 'agenda': body = adminAgenda(); break;
@@ -1398,7 +1484,7 @@
       body = state.cart.length ? lines : '<div class="empty">' + ic('bag', 40) + '<p class="mt-2">Seu carrinho está vazio.</p><button class="btn btn-primary mt-3" data-act="nav" data-view="shop">Explorar a loja</button></div>';
       foot = state.cart.length ? '<div class="row-between"><span class="muted small">Subtotal</span><strong class="gold mono" style="font-size:20px">' + money(subtotal) + '</strong></div><button class="btn btn-primary btn-block btn-lg mt-2" data-act="cart-tab" data-tab="checkout">Finalizar compra</button>' : '';
     }
-    root.innerHTML = '<div class="overlay" data-act="cart-close"></div><aside class="drawer"><div class="drawer-head"><h2>' + (ui.cartTab === 'checkout' ? 'Checkout' : 'Carrinho (' + cartCount() + ')') + '</h2><button class="icon-btn" data-act="cart-close">' + ic('x') + '</button></div><div class="drawer-body">' + body + '</div><div class="drawer-foot">' + foot + '</div></aside>';
+    root.innerHTML = '<div class="overlay" data-act="cart-close"></div><aside class="drawer"><div class="drawer-head"><h2>' + (ui.cartTab === 'checkout' ? 'Finalizar pedido' : 'Carrinho (' + cartCount() + ')') + '</h2><button class="icon-btn" data-act="cart-close">' + ic('x') + '</button></div><div class="drawer-body">' + body + '</div><div class="drawer-foot">' + foot + '</div></aside>';
   }
 
   function nav(view) {
@@ -1507,7 +1593,7 @@
           if (k2 === 'products') state.cart = state.cart.filter(function (i) { return i.productId !== id; });
           persist();
           if (k2 === 'products') sbRemove(k2, id);
-          render(); notify(k2 === 'users' ? 'Usuário removido localmente. Contas de acesso são gerenciadas no Supabase Auth.' : 'Item removido.', 'info');
+          render(); notify(k2 === 'users' ? 'Usuário removido localmente. Contas de acesso são gerenciadas na autenticação do Supabase.' : 'Item removido.', 'info');
         }
         break;
       }
@@ -1620,7 +1706,7 @@
           notify('Item cadastrado com sucesso.');
         }
         if (syncedKind === 'products') sbUpsert(syncedKind, item || obj);
-        else if (syncedKind === 'users' && sbReady()) notify('Perfil local atualizado. Dados de acesso ficam no Supabase Auth.', 'info');
+        else if (syncedKind === 'users' && sbReady()) notify('Perfil local atualizado. Dados de acesso ficam na autenticação do Supabase.', 'info');
         ui.adminForm = null; persist(); render();
         break;
       case 'supabase-config': {
