@@ -193,7 +193,7 @@ Salvar o painel com campos vazios limpa a configuração anterior e volta a usar
 
 Com a conexão ativa, o app:
 
-- carrega usuários e produtos ao iniciar;
+- carrega usuários e produtos ao iniciar, mesclando registros remotos com os locais pelo `id` (o remoto prevalece em conflito, e contas demo/itens excluídos localmente não reaparecem);
 - cria/atualiza usuário no cadastro e no CRUD admin;
 - cria/atualiza/exclui produtos no CRUD admin;
 - remove usuários excluídos no painel;

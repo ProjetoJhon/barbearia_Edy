@@ -291,6 +291,18 @@
       .then(function () { sb.ok = true; sb.error = ''; return true; })
       .catch(function (e) { sb.ok = false; sb.error = e.message; notify('Falha ao excluir no Supabase (' + kind + '): ' + e.message, 'error'); return false; });
   }
+  function sbMerge(kind, rows) {
+    var key = kind === 'users' ? 'users' : 'products';
+    var list = Array.isArray(state[key]) ? state[key].slice() : [];
+    var indexById = {};
+    list.forEach(function (item, i) { indexById[item.id] = i; });
+    rows.forEach(function (row) {
+      var item = kind === 'users' ? rowToUser(row) : rowToProduct(row);
+      if (indexById[item.id] !== undefined) list[indexById[item.id]] = item;
+      else { indexById[item.id] = list.length; list.push(item); }
+    });
+    return list;
+  }
   function sbLoad() {
     if (!sbReady()) { sb.checked = false; renderView(); return Promise.resolve(false); }
     var before = sb.checked + ':' + sb.ok;
@@ -301,8 +313,8 @@
     ]).then(function (res) {
       sb.ok = true; sb.checked = true; sb.error = '';
       var changed = false;
-      if (Array.isArray(res[0]) && res[0].length) { state.users = res[0].map(rowToUser); changed = true; }
-      if (Array.isArray(res[1]) && res[1].length) { state.products = res[1].map(rowToProduct); changed = true; }
+      if (Array.isArray(res[0]) && res[0].length) { state.users = sbMerge('users', res[0]); changed = true; }
+      if (Array.isArray(res[1]) && res[1].length) { state.products = sbMerge('products', res[1]); changed = true; }
       if (changed) {
         if (state.currentUser) {
           state.currentUser = state.users.find(function (u) { return u.id === state.currentUser.id; }) || null;
