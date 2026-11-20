@@ -57,7 +57,7 @@ Não há `package.json`, `node_modules`, transpilação ou build. Usuários e pr
 | Camada | Tecnologia | Uso |
 | --- | --- | --- |
 | Interface | HTML5 + CSS3 | Layout responsivo, tema escuro/dourado, componentes e animações |
-| Lógica | JavaScript clássico (`app.js`) | Rotas por hash, estado, agendamentos, loja, fidelidade e admin |
+| Lógica | JavaScript clássico (`app-v2.js`) | Rotas por hash, estado, agendamentos, loja, fidelidade e admin |
 | Configuração | `config.js` | URL e chave pública do Supabase |
 | Banco remoto | Supabase REST / PostgREST | Tabelas `users` e `products` |
 | Persistência local | `localStorage` (`edyk_v1_*`) | Agendamentos, pedidos, pontos, carrinho e configurações |
@@ -325,7 +325,7 @@ No Vercel:
 .
 ├── index.html              # SPA, emblema SVG e carregamento dos scripts
 ├── styles.css              # Tema EDY-K, layout e responsividade
-├── app.js                  # Estado, rotas, regras de negócio, Auth e integração Supabase
+├── app-v2.js               # Estado, rotas, regras de negócio, Auth e integração Supabase
 ├── config.js               # URL e chave pública do Supabase
 ├── server.py               # Servidor estático + API JSON local
 ├── supabase.sql            # Perfis, GRANTs mínimos, RLS e helper is_admin()
@@ -401,7 +401,7 @@ No Vercel:
 1. Faça um fork do repositório.
 2. Crie uma branch: `git checkout -b feature/minha-melhoria`.
 3. Faça alterações mantendo o projeto sem build e sem npm.
-4. Valide com `node --check app.js` e `python -m py_compile server.py`.
+4. Valide com `node --check app-v2.js` e `python -m py_compile server.py`.
 5. Abra um pull request descrevendo o impacto e os testes realizados.
 
 ## Contato
