@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 /**
- * Teste de inserção e exclusão de usuários e produtos no Supabase (EDY-K).
+ * Teste de segurança do Supabase (EDY-K): Auth + RLS + insert/consulta/exclusão.
  *
  * Uso:
- *   SUPABASE_URL=https://xxxx.supabase.co SUPABASE_ANON_KEY=ey... node test-supabase.mjs
- *   # ou (Windows PowerShell)
- *   $env:SUPABASE_URL="https://xxxx.supabase.co"; $env:SUPABASE_ANON_KEY="ey..."; node test-supabase.mjs
+ *   SUPABASE_ADMIN_EMAIL=admin@edyk.com SUPABASE_ADMIN_PASSWORD=senha node test-supabase.mjs
  *
- * Se as variáveis de ambiente não estiverem definidas, o script tenta ler
- * url/anonKey de config.js. Antes de rodar, execute supabase.sql no projeto.
+ * A URL e a anon key são lidas de config.js quando não passadas por ambiente.
+ * Antes de rodar, execute supabase.sql no SQL Editor e crie o usuário admin
+ * no Supabase Auth (com role admin no raw_user_meta_data).
  */
 import fs from 'node:fs';
 
@@ -26,44 +25,38 @@ function readConfigFile() {
 const fileCfg = readConfigFile();
 const url = String(process.env.SUPABASE_URL || fileCfg.url || '').replace(/\/+$/, '');
 const anonKey = String(process.env.SUPABASE_ANON_KEY || fileCfg.anonKey || '');
+const email = String(process.env.SUPABASE_ADMIN_EMAIL || 'admin@edyk.com');
+const password = String(process.env.SUPABASE_ADMIN_PASSWORD || '');
 
 if (!url || !anonKey) {
   console.error('ERRO: informe SUPABASE_URL e SUPABASE_ANON_KEY (ou preencha config.js).');
   process.exit(1);
 }
+if (!password) {
+  console.error('ERRO: informe SUPABASE_ADMIN_EMAIL e SUPABASE_ADMIN_PASSWORD.');
+  console.error('Exemplo: SUPABASE_ADMIN_PASSWORD=senha node test-supabase.mjs');
+  process.exit(1);
+}
 
-async function req(table, method, query = '', body) {
-  const r = await fetch(`${url}/rest/v1/${table}${query}`, {
+async function request(path, { method = 'GET', body, token } = {}) {
+  const headers = { apikey: anonKey, 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const r = await fetch(url + path, {
     method,
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation,resolution=merge-duplicates'
-    },
+    headers,
     body: body == null ? undefined : JSON.stringify(body)
   });
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`HTTP ${r.status}: ${t.slice(0, 300)}`);
-  }
-  return r.status === 204 ? null : r.json();
+  const text = await r.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { /* resposta não-JSON */ }
+  return { ok: r.ok, status: r.status, data, text };
 }
 
 const stamp = Date.now().toString().slice(-7) + Math.floor(Math.random() * 90 + 10);
-const testUser = {
-  id: `test-user-${stamp}`,
-  name: 'Teste EDY-K',
-  email: `teste.${stamp}@edyk.test`,
-  phone: '(11) 90000-0000',
-  password: '123456',
-  role: 'client',
-  created_at: new Date().toISOString().slice(0, 10)
-};
 const testProduct = {
   id: `test-prod-${stamp}`,
   name: 'Produto Teste EDY-K',
-  description: 'Registro temporário criado pelo teste',
+  description: 'Registro temporário criado pelo teste de segurança',
   category: 'Kits',
   price: 10,
   promo_price: null,
@@ -73,65 +66,95 @@ const testProduct = {
   featured: false
 };
 
-let ok = true;
 const steps = [];
+let ok = true;
 function log(label, pass, detail) {
   steps.push({ label, pass });
   console.log(`${pass ? 'OK  ' : 'FAIL'} ${label}${detail ? ' — ' + detail : ''}`);
   if (!pass) ok = false;
 }
 
-async function run() {
-  try {
-    await req('users', 'POST', '?on_conflict=id', testUser);
-    log('Inserir usuário', true);
-  } catch (e) {
-    log('Inserir usuário', false, e.message);
-  }
-
-  try {
-    await req('products', 'POST', '?on_conflict=id', testProduct);
-    log('Inserir produto', true);
-  } catch (e) {
-    log('Inserir produto', false, e.message);
-  }
-
-  try {
-    const r = await req('users', 'GET', `?select=id&id=eq.${encodeURIComponent(testUser.id)}`);
-    log('Consultar usuário inserido', Array.isArray(r) && r.length === 1);
-  } catch (e) {
-    log('Consultar usuário inserido', false, e.message);
-  }
-
-  try {
-    const r = await req('products', 'GET', `?select=id&id=eq.${encodeURIComponent(testProduct.id)}`);
-    log('Consultar produto inserido', Array.isArray(r) && r.length === 1);
-  } catch (e) {
-    log('Consultar produto inserido', false, e.message);
-  }
-
-  // Exclusão (sempre tenta limpar, mesmo se inserção/consulta falhar)
-  try {
-    await req('users', 'DELETE', `?id=eq.${encodeURIComponent(testUser.id)}`);
-    const r = await req('users', 'GET', `?select=id&id=eq.${encodeURIComponent(testUser.id)}`);
-    log('Excluir usuário', Array.isArray(r) && r.length === 0);
-  } catch (e) {
-    log('Excluir usuário', false, e.message);
-  }
-
-  try {
-    await req('products', 'DELETE', `?id=eq.${encodeURIComponent(testProduct.id)}`);
-    const r = await req('products', 'GET', `?select=id&id=eq.${encodeURIComponent(testProduct.id)}`);
-    log('Excluir produto', Array.isArray(r) && r.length === 0);
-  } catch (e) {
-    log('Excluir produto', false, e.message);
-  }
-
-  console.log(`\nResultado: ${ok ? 'SUCESSO' : 'FALHA'} (${steps.filter(s => s.pass).length}/${steps.length} etapas)`);
-  process.exit(ok ? 0 : 1);
+let token = '';
+async function cleanup() {
+  if (!token) return;
+  await request(`/rest/v1/products?id=eq.${encodeURIComponent(testProduct.id)}`, { method: 'DELETE', token });
+  const check = await request(`/rest/v1/products?select=id&id=eq.${encodeURIComponent(testProduct.id)}`, { token });
+  log('Excluir produto de teste', Array.isArray(check.data) && check.data.length === 0);
 }
 
-run().catch((e) => {
-  console.error('Falha inesperada:', e.message);
-  process.exit(1);
-});
+async function run() {
+  let login;
+  try {
+    login = await request('/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      body: { email, password }
+    });
+    log('Login com Supabase Auth', login.ok, login.ok ? '' : `HTTP ${login.status}`);
+    if (!login.ok) return;
+    token = login.data.access_token;
+  } catch (e) {
+    log('Login com Supabase Auth', false, e.message);
+    return;
+  }
+
+  try {
+    const admin = await request('/rest/v1/rpc/is_admin', { method: 'POST', body: {}, token });
+    log('Role admin aplicada no RLS', admin.ok && admin.data === true, admin.ok ? '' : `HTTP ${admin.status}`);
+  } catch (e) {
+    log('Role admin aplicada no RLS', false, e.message);
+  }
+
+  try {
+    const insert = await request('/rest/v1/products?on_conflict=id', { method: 'POST', body: testProduct, token });
+    log('Admin insere produto', insert.ok, insert.ok ? '' : `HTTP ${insert.status}: ${insert.text.slice(0, 120)}`);
+  } catch (e) {
+    log('Admin insere produto', false, e.message);
+  }
+
+  try {
+    const q = await request(`/rest/v1/products?select=id&id=eq.${encodeURIComponent(testProduct.id)}`, { token });
+    log('Admin consulta produto', q.ok && Array.isArray(q.data) && q.data.length === 1);
+  } catch (e) {
+    log('Admin consulta produto', false, e.message);
+  }
+
+  try {
+    const userId = encodeURIComponent(login.data.user.id);
+    const profile = await request(`/rest/v1/users?select=id&id=eq.${userId}`, { token });
+    log('Usuário lê apenas o próprio perfil', profile.ok && Array.isArray(profile.data) && profile.data.length === 1);
+  } catch (e) {
+    log('Usuário lê apenas o próprio perfil', false, e.message);
+  }
+
+  try {
+    const anon = await request(`/rest/v1/products?select=id&id=eq.${encodeURIComponent(testProduct.id)}`);
+    log('Anônimo lê produto ativo', anon.ok && Array.isArray(anon.data) && anon.data.length === 1);
+  } catch (e) {
+    log('Anônimo lê produto ativo', false, e.message);
+  }
+
+  try {
+    const anonWrite = await request('/rest/v1/products', {
+      method: 'POST',
+      body: { ...testProduct, id: `${testProduct.id}-anon` }
+    });
+    log('Anônimo NÃO grava produto', !anonWrite.ok, `HTTP ${anonWrite.status}`);
+  } catch (e) {
+    log('Anônimo NÃO grava produto', true);
+  }
+
+  try {
+    const anonUsers = await request('/rest/v1/users?select=id');
+    log('Anônimo NÃO lê usuários', !anonUsers.ok, `HTTP ${anonUsers.status}`);
+  } catch (e) {
+    log('Anônimo NÃO lê usuários', true);
+  }
+}
+
+run()
+  .catch((e) => log('Falha inesperada', false, e.message))
+  .finally(async () => {
+    try { await cleanup(); } catch (e) { log('Limpeza do teste', false, e.message); }
+    console.log(`\nResultado: ${ok ? 'SUCESSO' : 'FALHA'} (${steps.filter((s) => s.pass).length}/${steps.length} etapas)`);
+    process.exit(ok ? 0 : 1);
+  });

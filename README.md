@@ -77,7 +77,7 @@ Não há `package.json`, `node_modules`, transpilação ou build. Usuários e pr
 - Baixa automática de estoque após compra.
 - Meus Pedidos e Meus Horários.
 - Programa de fidelidade: pontos, resgate de recompensas e extrato.
-- Login, cadastro e acessos rápidos de demonstração.
+- Login e cadastro via Supabase Auth quando configurado; acessos rápidos apenas no modo demo offline.
 
 ### Painel administrativo
 
@@ -131,33 +131,36 @@ Esses valores já estão em `vercel.json`. Não é preciso `npm install` nem var
 
 ## Contas de demonstração
 
-| Perfil | E-mail | Senha |
+| Perfil | E-mail | Senha sugerida |
 | --- | --- | --- |
 | Administrador | `admin@edyk.com` | `admin123` |
 | Cliente | `cliente@edyk.com` | `123456` |
 
-Também há botões de acesso rápido na tela de login.
+- **Sem Supabase configurado:** são contas locais, com botões de acesso rápido na tela de login.
+- **Com Supabase configurado:** crie esses e-mails em **Authentication → Users**, use as senhas escolhidas e promova o admin conforme o passo 2 da integração. Os botões de acesso rápido desaparecem; o login passa a ser feito pelo Supabase Auth.
 
 ## Arquitetura de dados
 
 ```mermaid
 flowchart LR
     A[Navegador] -->|edyk_v1_*| B[localStorage]
-    A -->|REST /rest/v1| C[(Supabase)]
-    A -->|GET/POST /api/state| D[server.py]
-    D --> E[data/store.json]
+    A -->|sessionStorage + Bearer| C[Supabase Auth]
+    A -->|REST /rest/v1 + RLS| D[(Supabase)]
+    A -->|GET/POST /api/state| E[server.py]
+    E --> F[data/store.json]
 ```
 
 | Dado | Onde fica |
 | --- | --- |
-| Usuários e produtos | Supabase, quando configurado; `localStorage` como fallback |
+| Contas e senhas | Supabase Auth (`auth.users`), quando configurado; `localStorage` apenas no modo demo offline |
+| Perfis e produtos | Supabase, protegidos por RLS; `localStorage` como fallback |
 | Agendamentos, pedidos, pontos, recompensas, carrinho e configurações | `localStorage` |
 | Estado compartilhado em localhost | `data/store.json` via API Python |
-| Sessão do usuário (`currentUser`) | Apenas `localStorage` do navegador — nunca vai para a API compartilhada |
+| Sessão (`edyk_auth_session`) e perfil atual | `sessionStorage` do navegador; nunca enviados para a API compartilhada |
 
 ## Integração com Supabase
 
-A integração usa **REST/PostgREST direto no navegador**, sem SDK e sem npm. A chave publicável/anon é própria para o cliente; a `service_role` nunca deve aparecer no front-end.
+A integração usa **Supabase Auth + REST/PostgREST direto no navegador**, sem SDK e sem npm. A chave publicável/anon é própria para o cliente; a `service_role` nunca deve aparecer no front-end.
 
 ### 1. Prepare o banco
 
@@ -165,9 +168,28 @@ A integração usa **REST/PostgREST direto no navegador**, sem SDK e sem npm. A 
 2. Aba **SQL Editor → New query**.
 3. Execute todo o conteúdo de [`supabase.sql`](supabase.sql).
 
-O script cria `public.users` e `public.products`, concede privilégios ao papel `anon`, habilita RLS, cria políticas de demonstração e recarrega o cache do PostgREST.
+> O script **recria `public.users`**. As tabelas atuais estão vazias, mas exporte dados se houver informações importantes.
 
-### 2. Configure as credenciais
+O SQL cria perfis ligados a `auth.users`, remove a coluna de senha, habilita RLS, aplica `GRANT`s mínimos e cria o helper `public.is_admin()`, que lê o papel do **JWT assinado** — não do `localStorage`.
+
+### 2. Crie os usuários no Supabase Auth
+
+Em **Authentication → Users → Add user**, crie pelo menos:
+
+- `admin@edyk.com` com a senha desejada;
+- `cliente@edyk.com` com a senha desejada.
+
+Depois, ainda no SQL Editor, promova o administrador (o SQL de exemplo também está no final de `supabase.sql`):
+
+```sql
+update auth.users
+set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
+where email = 'admin@edyk.com';
+```
+
+Faça **logout/login** no app para o JWT receber a nova claim. O perfil em `public.users` é criado automaticamente no primeiro login.
+
+### 3. Configure as credenciais
 
 Edite `config.js`:
 
@@ -189,51 +211,78 @@ Prioridade de configuração:
 
 Salvar o painel com campos vazios limpa a configuração anterior e volta a usar o arquivo.
 
-### 3. Sincronização automática
+### 4. O que o RLS permite
+
+| Operação | Visitante (anon) | Cliente autenticado | Admin autenticado |
+| --- | --- | --- | --- |
+| Ler produtos ativos | ✅ | ✅ | ✅ |
+| Ler produtos inativos | ❌ | ❌ | ✅ |
+| Criar/editar/excluir produtos | ❌ | ❌ | ✅ |
+| Ler próprio perfil | ❌ | ✅ | ✅ |
+| Ler todos os perfis | ❌ | ❌ | ✅ |
+| Criar próprio perfil | ❌ | ✅ (sem poder virar admin) | ✅ |
+
+### 5. Sincronização automática
 
 Com a conexão ativa, o app:
 
-- carrega usuários e produtos ao iniciar, mesclando registros remotos com os locais pelo `id` (o remoto prevalece em conflito, e contas demo/itens excluídos localmente não reaparecem);
-- cria/atualiza usuário no cadastro e no CRUD admin;
-- cria/atualiza/exclui produtos no CRUD admin;
-- remove usuários excluídos no painel;
-- atualiza o estoque remoto após cada pedido.
+- autentica login/cadastro pelo Supabase Auth;
+- cria o perfil do usuário no primeiro login;
+- carrega produtos e, quando há sessão, os perfis autorizados, mesclando pelo `id`;
+- grava, edita e exclui produtos no CRUD admin somente com sessão admin;
+- atualiza o estoque remoto após cada pedido;
+- mantém agendamentos, pedidos, pontos e carrinho no `localStorage`.
+
+Contas de acesso são gerenciadas no Supabase Auth. O painel admin não cria nem apaga usuários do Auth; alterações locais de perfil são apenas cosméticas e não alteram permissões.
 
 ## Testes
 
 ### Pelo painel (recomendado)
 
-**PAINEL ADMIN → Supabase → TESTAR INSERT/EXCLUSÃO**
+Entre como **admin do Supabase Auth** e vá em **PAINEL ADMIN → Supabase → TESTAR INSERT/EXCLUSÃO**.
 
-O teste cria um usuário e um produto temporários, consulta ambos e os exclui ao final. Resultado esperado: **PASSOU (5/5)**.
+O teste valida:
+
+1. permissão de administrador via RLS;
+2. inserção de produto temporário;
+3. leitura do próprio perfil;
+4. leitura pública do produto ativo;
+5. exclusão do produto temporário.
+
+Resultado esperado: **PASSOU (5/5)**.
 
 ### Pelo terminal
 
 ```bash
 # macOS/Linux
-SUPABASE_URL=https://SEU-PROJETO.supabase.co \
-SUPABASE_ANON_KEY=SUA_CHAVE \
+SUPABASE_ADMIN_EMAIL=admin@edyk.com \
+SUPABASE_ADMIN_PASSWORD=SUA_SENHA \
 node test-supabase.mjs
 ```
 
 ```powershell
 # Windows PowerShell
-$env:SUPABASE_URL="https://SEU-PROJETO.supabase.co"
-$env:SUPABASE_ANON_KEY="SUA_CHAVE"
+$env:SUPABASE_ADMIN_EMAIL = "admin@edyk.com"
+$env:SUPABASE_ADMIN_PASSWORD = "SUA_SENHA"
 node test-supabase.mjs
 ```
 
-As variáveis são opcionais: se não existirem, o script lê `config.js`. Resultado esperado:
+`SUPABASE_URL` e `SUPABASE_ANON_KEY` são opcionais: se não existirem, o script lê `config.js`.
+
+O teste também verifica que um visitante anônimo **não consegue** gravar produtos nem ler usuários. Resultado esperado:
 
 ```text
-OK   Inserir usuário
-OK   Inserir produto
-OK   Consultar usuário inserido
-OK   Consultar produto inserido
-OK   Excluir usuário
-OK   Excluir produto
+OK   Login com Supabase Auth
+OK   Role admin aplicada no RLS
+OK   Admin insere produto
+OK   Admin consulta produto
+OK   Usuário lê apenas o próprio perfil
+OK   Anônimo lê produto ativo
+OK   Anônimo NÃO grava produto
+OK   Anônimo NÃO lê usuários
+OK   Excluir produto de teste
 
-Resultado: SUCESSO (6/6 etapas)
+Resultado: SUCESSO (9/9 etapas)
 ```
 
 ## API local (Python)
@@ -265,11 +314,11 @@ No Vercel:
 .
 ├── index.html              # SPA, emblema SVG e carregamento dos scripts
 ├── styles.css              # Tema EDY-K, layout e responsividade
-├── app.js                  # Estado, rotas, regras de negócio e integração Supabase
+├── app.js                  # Estado, rotas, regras de negócio, Auth e integração Supabase
 ├── config.js               # URL e chave pública do Supabase
 ├── server.py               # Servidor estático + API JSON local
-├── supabase.sql            # Tabelas, GRANTs, RLS e reload do schema
-├── test-supabase.mjs       # Teste de insert/consulta/delete via REST
+├── supabase.sql            # Perfis, GRANTs mínimos, RLS e helper is_admin()
+├── test-supabase.mjs       # Teste de Auth, RLS e insert/consulta/delete via REST
 ├── vercel.json             # Configuração de deploy estático
 ├── manifest.webmanifest    # PWA
 ├── metadata.json           # Metadados do aplicativo
@@ -285,9 +334,13 @@ No Vercel:
 
 - A chave `anon`/`publishable` pode ficar no front-end **somente com RLS configurado**.
 - **Nunca** coloque a `service_role` em `config.js`, no painel ou em qualquer arquivo cliente.
-- As políticas em `supabase.sql` são de demonstração (`using (true)`). Em produção, troque por políticas baseadas em `auth.uid()`.
-- Senhas aparecem em texto simples neste protótipo. Para produção, use Supabase Auth com hash no servidor.
+- Login/cadastro usam Supabase Auth; a tabela `public.users` não armazena senha.
+- RLS usa `auth.uid()` e o helper `public.is_admin()`, baseado em claim do JWT. Mudar o `role` no `localStorage` ou na tabela não concede acesso administrativo.
+- Visitantes só leem produtos ativos; escrita remota é exclusiva de admins autenticados.
+- O token de sessão fica em `sessionStorage` (`edyk_auth_session`) e **não** é enviado para a API Python compartilhada; ele expira com a aba do navegador.
+- Em dispositivos compartilhados, use **Sair do painel**/logout ao terminar.
 - Não exponha `data/store.json` em um servidor público: ele contém o estado local da aplicação.
+- Para produção, mantenha confirmação de e-mail ativada no Supabase Auth e considere mover agendamentos/pedidos para tabelas com RLS próprio.
 
 ## Solução de problemas
 
@@ -295,15 +348,24 @@ No Vercel:
 | --- | --- | --- |
 | `401` com `No API key found` | Chave não preenchida | Preencha `anonKey` em `config.js` ou no painel |
 | `PGRST205` | Tabelas não criadas ou cache antigo | Execute `supabase.sql`; se persistir, rode `notify pgrst, 'reload schema';` |
-| `42501 permission denied` | Falta `GRANT` para `anon` | Rode novamente `supabase.sql` (inclui os `GRANT`s) |
+| `42501 permission denied` | RLS/GRANT não aplicado ou papel errado | Rode novamente `supabase.sql` e entre com a conta correta |
+| `401` no login com Supabase | Usuário não existe no Auth ou senha errada | Crie o usuário em **Authentication → Users** e tente novamente |
+| “A conta atual não tem role admin” | `raw_user_meta_data.role` não foi definido | Rode o SQL de promoção do admin e faça logout/login |
+| `new row violates row-level security policy` ao cadastrar | Perfil com `role` diferente do permitido | Cadastre pelo app; nunca envie `role: admin` no signup |
+| Produtos não aparecem no painel | Sessão sem token admin | Entre com a conta admin do Supabase Auth |
 | `404` no Vercel para `/api/state` | API Python não existe no deploy | Normal; o app usa `localStorage`/Supabase |
 | Status “Configuração incompleta” | URL ou chave vazia | Confira os campos em **Admin → Supabase** |
-| Login não persiste após reload | Configuração antiga sobrescrevendo a sessão | Atualize para a versão atual; `currentUser` não é mais sincronizado pela API |
+| Login não persiste após reload | Sessão expirada/configuração alterada | Faça login novamente; o token é renovado automaticamente quando possível |
 
 ## Changelog
 
 ### 2026-11-20
 
+- **Segurança reforçada:** login/cadastro passam a usar Supabase Auth quando configurado.
+- Tabela `public.users` recriada sem senha, ligada a `auth.users`, com perfis criados no primeiro login.
+- RLS por `auth.uid()` e helper `is_admin()` baseado no JWT; anon lê só produtos ativos e não acessa usuários.
+- CRUD remoto de produtos restrito a admins; usuários passam a ser gerenciados no Supabase Auth.
+- Testes reescritos para validar Auth, RLS, negação de acesso anônimo e limpeza de resíduos.
 - Conversão completa de React/TypeScript/Vite para HTML/CSS/JavaScript/Python.
 - Remoção de `ERESOLVE`, `/src/main.tsx`, caminhos absolutos e dependência de build.
 - Correção de imagem `.jpeg`/`.jpg`, ícones PWA e responsividade em 1200/900/375 px.
@@ -318,10 +380,9 @@ No Vercel:
 
 ## Roadmap
 
-- Migrar autenticação para Supabase Auth com sessão real.
-- Trocar RLS demonstrativo por políticas por usuário (`auth.uid()`).
-- Parar de armazenar senhas em texto simples.
-- Levar agendamentos e pedidos também para o banco remoto.
+- Adicionar recuperação de senha e confirmação de e-mail ao fluxo do app.
+- Levar agendamentos e pedidos também para o banco remoto com RLS por usuário.
+- Substituir a API Python por uma camada serverless para operações administrativas sensíveis.
 - Adicionar testes automatizados de interface com Playwright.
 
 ## Contribuindo

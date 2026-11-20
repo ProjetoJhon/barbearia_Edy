@@ -242,17 +242,133 @@
     };
   }
   function sbReady() { var c = sbConfig(); return !!(c.url && c.anonKey); }
+
+  /* ==== Supabase Auth ================================================== */
+  var AUTH_SESSION_KEY = 'edyk_auth_session';
+  var authSession = null;
+
+  function authToken() {
+    if (!authSession || !authSession.access_token) return '';
+    var exp = Number(authSession.expires_at || 0);
+    if (exp && Date.now() / 1000 > exp - 60) return '';
+    return authSession.access_token;
+  }
+  function authSave(data) {
+    authSession = data && data.access_token ? data : null;
+    if (authSession && !authSession.expires_at && authSession.expires_in) {
+      authSession.expires_at = Math.floor(Date.now() / 1000) + Number(authSession.expires_in);
+    }
+    try {
+      if (authSession) sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(authSession));
+      else sessionStorage.removeItem(AUTH_SESSION_KEY);
+    } catch (e) { /* storage indisponível */ }
+  }
+  function authFetch(path, method, body, withToken, tokenOverride) {
+    var c = sbConfig();
+    if (!c.url || !c.anonKey) return Promise.reject(new Error('Supabase não configurado'));
+    var token = tokenOverride || (withToken !== false ? authToken() : '');
+    var headers = { 'apikey': c.anonKey, 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    return fetch(c.url + '/auth/v1' + path, {
+      method: method,
+      headers: headers,
+      body: body == null ? undefined : JSON.stringify(body)
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        var data = null;
+        try { data = t ? JSON.parse(t) : null; } catch (e) { /* resposta não-JSON */ }
+        if (!r.ok) {
+          var msg = data && (data.msg || data.message || data.error_description || data.error) || t;
+          throw new Error('HTTP ' + r.status + ': ' + String(msg).slice(0, 180));
+        }
+        return data;
+      });
+    });
+  }
+  function authRestore() {
+    try { authSession = JSON.parse(sessionStorage.getItem(AUTH_SESSION_KEY) || 'null') || null; } catch (e) { authSession = null; }
+    if (!authSession || !authSession.access_token) { authSession = null; return Promise.resolve(false); }
+    if (authToken()) return Promise.resolve(true);
+    return authFetch('/token?grant_type=refresh_token', 'POST', { refresh_token: authSession.refresh_token }, false)
+      .then(function (data) { authSave(data); return true; })
+      .catch(function () { authSave(null); return false; });
+  }
+  function authProfile(session) {
+    var id = session && session.user && session.user.id;
+    if (!id) return Promise.resolve(null);
+    return sbRequest('users', 'GET', '?select=*&id=eq.' + encodeURIComponent(id)).then(function (rows) {
+      if (Array.isArray(rows) && rows.length) return rows[0];
+      var meta = (session.user && session.user.user_metadata) || {};
+      var row = {
+        id: id,
+        name: meta.name || String(session.user.email || '').split('@')[0],
+        email: session.user.email || '',
+        phone: meta.phone || '',
+        role: meta.role === 'admin' ? 'admin' : 'client',
+        created_at: new Date().toISOString()
+      };
+      return sbRequest('users', 'POST', '?on_conflict=id', row).then(function () { return row; });
+    });
+  }
+  function authApply(session) {
+    return authProfile(session).then(function (row) {
+      if (row) {
+        state.users = sbMerge('users', [row]);
+        state.currentUser = state.users.find(function (u) { return u.id === row.id; }) || rowToUser(row);
+      }
+      persist(); render();
+      return !!row;
+    });
+  }
+  function authLogin(email, password) {
+    return authFetch('/token?grant_type=password', 'POST', { email: email, password: password }, false)
+      .then(function (session) {
+        authSave(session);
+        return authApply(session).then(function () {
+          notify('Bem-vindo, ' + String((state.currentUser || {}).name || '').split(' ')[0] + '!');
+          return { ok: true, user: state.currentUser };
+        });
+      })
+      .catch(function (e) { return { ok: false, error: 'E-mail ou senha incorretos. ' + e.message }; });
+  }
+  function authSignup(data) {
+    var body = {
+      email: data.email,
+      password: data.password,
+      data: { name: data.name, phone: data.phone }
+    };
+    return authFetch('/signup', 'POST', body, false).then(function (session) {
+      if (!session || !session.access_token) {
+        return { ok: false, needsConfirmation: true, error: 'Conta criada. Confirme seu e-mail no Supabase antes de entrar.' };
+      }
+      authSave(session);
+      return authApply(session).then(function () {
+        notify('Conta criada com sucesso! Seja bem-vindo à EDY-K.');
+        return { ok: true, user: state.currentUser };
+      });
+    }).catch(function (e) { return { ok: false, error: 'Não foi possível cadastrar: ' + e.message }; });
+  }
+  function authLogout() {
+    var token = authToken();
+    authSave(null);
+    state.currentUser = null;
+    persist();
+    if (!token || !sbReady()) return Promise.resolve(true);
+    return authFetch('/logout', 'POST', {}, false, token).catch(function () { return false; });
+  }
+
   function sbRequest(table, method, query, body) {
     var c = sbConfig();
     if (!c.url || !c.anonKey) return Promise.reject(new Error('Supabase não configurado'));
+    var headers = {
+      'apikey': c.anonKey,
+      'Authorization': 'Bearer ' + (authToken() || c.anonKey),
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'return=representation,resolution=merge-duplicates' : 'return=representation'
+    };
     return fetch(c.url + '/rest/v1/' + table + (query || ''), {
       method: method,
-      headers: {
-        'apikey': c.anonKey,
-        'Authorization': 'Bearer ' + c.anonKey,
-        'Content-Type': 'application/json',
-        'Prefer': method === 'POST' ? 'return=representation,resolution=merge-duplicates' : 'return=representation'
-      },
+      headers: headers,
       body: body == null ? undefined : JSON.stringify(body)
     }).then(function (r) {
       if (!r.ok) {
@@ -263,10 +379,10 @@
   }
 
   function userToRow(u) {
-    return { id: u.id, name: u.name, email: u.email, phone: u.phone || '', password: u.password || '', role: u.role || 'client', created_at: u.createdAt || iso(0) };
+    return { id: u.id, name: u.name, email: u.email, phone: u.phone || '', role: u.role || 'client', created_at: u.createdAt || iso(0) };
   }
   function rowToUser(r) {
-    return { id: r.id, name: r.name, email: r.email, phone: r.phone || '', password: r.password || '', role: r.role || 'client', createdAt: r.created_at || iso(0) };
+    return { id: r.id, name: r.name, email: r.email, phone: r.phone || '', password: '', role: r.role || 'client', createdAt: r.created_at || iso(0) };
   }
   function productToRow(p) {
     return { id: p.id, name: p.name, description: p.description || '', category: p.category || '', price: Number(p.price) || 0, promo_price: p.promoPrice == null ? null : Number(p.promoPrice), stock: Number(p.stock) || 0, image: p.image || '', active: !!p.active, featured: !!p.featured };
@@ -307,14 +423,16 @@
     if (!sbReady()) { sb.checked = false; renderView(); return Promise.resolve(false); }
     var before = sb.checked + ':' + sb.ok;
     function refreshStatus() { if (before !== sb.checked + ':' + sb.ok) renderView(); }
-    return Promise.all([
-      sbRequest('users', 'GET', '?select=*'),
-      sbRequest('products', 'GET', '?select=*')
-    ]).then(function (res) {
+    var withUsers = !!authToken();
+    var requests = [sbRequest('products', 'GET', '?select=*')];
+    if (withUsers) requests.unshift(sbRequest('users', 'GET', '?select=*'));
+    return Promise.all(requests).then(function (res) {
       sb.ok = true; sb.checked = true; sb.error = '';
+      var usersRows = withUsers ? res[0] : null;
+      var productsRows = withUsers ? res[1] : res[0];
       var changed = false;
-      if (Array.isArray(res[0]) && res[0].length) { state.users = sbMerge('users', res[0]); changed = true; }
-      if (Array.isArray(res[1]) && res[1].length) { state.products = sbMerge('products', res[1]); changed = true; }
+      if (Array.isArray(usersRows) && usersRows.length) { state.users = sbMerge('users', usersRows); changed = true; }
+      if (Array.isArray(productsRows) && productsRows.length) { state.products = sbMerge('products', productsRows); changed = true; }
       if (changed) {
         if (state.currentUser) {
           state.currentUser = state.users.find(function (u) { return u.id === state.currentUser.id; }) || null;
@@ -330,51 +448,63 @@
   }
   function sbPublishSeed() {
     if (!sbReady()) { notify('Configure a URL e a chave anon antes.', 'error'); return; }
-    Promise.all([
-      sbRequest('users', 'POST', '?on_conflict=id', SEED.users.map(userToRow)),
-      sbRequest('products', 'POST', '?on_conflict=id', SEED.products.map(productToRow))
-    ]).then(function () {
+    if (!authToken()) { notify('Entre como administrador para publicar dados.', 'error'); return; }
+    sbRequest('products', 'POST', '?on_conflict=id', SEED.products.map(productToRow)).then(function () {
       sb.ok = true; sb.error = '';
-      notify('Dados iniciais publicados no Supabase.');
+      notify('Produtos iniciais publicados. Contas são criadas no Supabase Auth.');
       return sbLoad();
     }).catch(function (e) { sb.ok = false; sb.error = e.message; notify('Falha ao publicar: ' + e.message, 'error'); });
   }
   function sbSelfTest() {
     if (!sbReady()) { notify('Configure a URL e a chave anon antes.', 'error'); return; }
+    var c = sbConfig();
     var stamp = Date.now().toString().slice(-7) + Math.floor(Math.random() * 90 + 10);
-    var u = { id: 'test-user-' + stamp, name: 'Teste EDY-K', email: 'teste.' + stamp + '@edyk.test', phone: '(11) 90000-0000', password: '123456', role: 'client', createdAt: iso(0) };
     var p = { id: 'test-prod-' + stamp, name: 'Produto Teste EDY-K', description: 'Registro temporário criado pelo teste', category: 'Kits', price: 10, stock: 1, image: 'assets/images/product-kit.jpg', active: true, featured: false };
     var steps = [];
     ui.sbTest = { running: true, ok: false, steps: steps };
     renderView();
 
     function step(text, ok) { steps.push({ text: text, ok: !!ok }); ui.sbTest.steps = steps.slice(); renderView(); }
-    function del(table, id) { return sbRequest(table, 'DELETE', '?id=eq.' + encodeURIComponent(id)).catch(function () {}); }
-    function gone(table, id) {
-      return sbRequest(table, 'GET', '?select=id&id=eq.' + encodeURIComponent(id))
+    function del() { return sbRequest('products', 'DELETE', '?id=eq.' + encodeURIComponent(p.id)).catch(function () {}); }
+    function gone() {
+      return sbRequest('products', 'GET', '?select=id&id=eq.' + encodeURIComponent(p.id))
         .then(function (r) { return !Array.isArray(r) || r.length === 0; })
         .catch(function () { return false; });
     }
+    function anonSees() {
+      return fetch(c.url + '/rest/v1/products?select=id&id=eq.' + encodeURIComponent(p.id), {
+        headers: { apikey: c.anonKey, Authorization: 'Bearer ' + c.anonKey }
+      }).then(function (r) { return r.ok ? r.json() : []; }).then(function (r) { return Array.isArray(r) && r.length > 0; }).catch(function () { return false; });
+    }
     function finish(ok, err) {
       if (err) step('Erro: ' + err, false);
-      Promise.all([del('users', u.id), del('products', p.id)])
-        .then(function () { return Promise.all([gone('users', u.id), gone('products', p.id)]); })
-        .then(function (r) {
-          var clean = r[0] && r[1];
-          step('Excluir registros de teste', clean);
-          ui.sbTest = { running: false, ok: ok && clean, steps: steps.slice() };
-          sb.ok = sb.ok && ui.sbTest.ok;
-          renderView();
-          notify(ui.sbTest.ok ? 'Teste de insert/exclusão concluído com sucesso.' : 'Teste com falhas — veja os detalhes no painel.', ui.sbTest.ok ? 'success' : 'error');
-        });
+      del().then(gone).then(function (clean) {
+        step('Excluir registro de teste', clean);
+        ui.sbTest = { running: false, ok: ok && clean, steps: steps.slice() };
+        sb.ok = sb.ok && ui.sbTest.ok;
+        renderView();
+        notify(ui.sbTest.ok ? 'Teste de RLS/insert/exclusão concluído com sucesso.' : 'Teste com falhas — veja os detalhes no painel.', ui.sbTest.ok ? 'success' : 'error');
+      });
     }
-
-    sbRequest('users', 'POST', '?on_conflict=id', userToRow(u))
-      .then(function () { step('Inserir usuário de teste', true); return sbRequest('products', 'POST', '?on_conflict=id', productToRow(p)); })
-      .then(function () { step('Inserir produto de teste', true); return sbRequest('users', 'GET', '?select=id&id=eq.' + encodeURIComponent(u.id)); })
-      .then(function (r) { step('Consultar usuário inserido', Array.isArray(r) && r.length > 0); return sbRequest('products', 'GET', '?select=id&id=eq.' + encodeURIComponent(p.id)); })
-      .then(function (r) { step('Consultar produto inserido', Array.isArray(r) && r.length > 0); finish(true); })
-      .catch(function (e) { sb.ok = false; sb.error = e.message; finish(false, e.message); });
+    if (!authToken()) {
+      step('Sessão de administrador', false);
+      finish(false, 'Faça login com a conta admin do Supabase Auth.');
+      return;
+    }
+    sbRequest('rpc/is_admin', 'POST', '', {}).then(function (admin) {
+      step('Permissão de administrador no RLS', admin === true);
+      if (admin !== true) throw new Error('A conta atual não tem role admin no JWT.');
+      return sbRequest('products', 'POST', '?on_conflict=id', productToRow(p));
+    }).then(function () {
+      step('Inserir produto de teste (admin)', true);
+      return sbRequest('users', 'GET', '?select=id&id=eq.' + encodeURIComponent((state.currentUser || {}).id || ''));
+    }).then(function (r) {
+      step('Consultar próprio perfil', Array.isArray(r) && r.length > 0);
+      return anonSees();
+    }).then(function (visible) {
+      step('Visitante vê produto ativo', visible);
+      finish(true);
+    }).catch(function (e) { sb.ok = false; sb.error = e.message; finish(false, e.message); });
   }
 
   function persist() {
@@ -391,27 +521,38 @@
     }, 600);
   }
 
+  function authBootstrap() {
+    return authRestore().then(function (ok) {
+      if (ok && authSession) return authApply(authSession).catch(function () { return false; });
+      /* Com Auth configurado, sessão local antiga não é autoridade. */
+      if (sbReady()) { state.currentUser = null; persist(); render(); }
+      return false;
+    });
+  }
+
   function initRemote() {
     /* Supabase funciona em qualquer origem: file://, localhost ou Vercel. */
-    sbLoad();
+    return authBootstrap().then(function () {
+      sbLoad();
 
-    /* A API Python de persistência só existe em localhost. */
-    if (!/^https?:$/.test(location.protocol)) return;
-    if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
-    fetch('api/state', { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) {
-        apiAvailable = true;
-        if (data && typeof data === 'object') {
-          var changed = false;
-          Object.keys(SEED).forEach(function (k) {
-            if (k === 'currentUser') return; /* sessão permanece local ao navegador */
-            if (data[k] !== undefined && JSON.stringify(data[k]) !== JSON.stringify(state[k])) { state[k] = data[k]; changed = true; }
-          });
-          if (changed) render();
-        }
-      })
-      .catch(function () { apiAvailable = false; });
+      /* A API Python de persistência só existe em localhost. */
+      if (!/^https?:$/.test(location.protocol)) return;
+      if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
+      fetch('api/state', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          apiAvailable = true;
+          if (data && typeof data === 'object') {
+            var changed = false;
+            Object.keys(SEED).forEach(function (k) {
+              if (k === 'currentUser') return; /* sessão permanece local ao navegador */
+              if (data[k] !== undefined && JSON.stringify(data[k]) !== JSON.stringify(state[k])) { state[k] = data[k]; changed = true; }
+            });
+            if (changed) render();
+          }
+        })
+        .catch(function () { apiAvailable = false; });
+    });
   }
 
   function notify(text, type) {
@@ -479,25 +620,29 @@
   }
 
   function login(email, password) {
+    if (sbReady()) return authLogin(email, password);
     var found = state.users.find(function (u) { return u.email.toLowerCase() === String(email).trim().toLowerCase() && u.password === password; });
-    if (!found) return { ok: false, error: 'E-mail ou senha incorretos. Verifique seus dados ou use o acesso rápido.' };
+    if (!found) return Promise.resolve({ ok: false, error: 'E-mail ou senha incorretos.' });
     state.currentUser = found;
     persist();
     notify('Bem-vindo, ' + found.name.split(' ')[0] + '!');
-    return { ok: true, user: found };
+    return Promise.resolve({ ok: true, user: found });
   }
   function register(data) {
     var email = String(data.email).trim().toLowerCase();
-    if (state.users.some(function (u) { return u.email.toLowerCase() === email; })) return { ok: false, error: 'Já existe uma conta cadastrada com este e-mail.' };
+    if (sbReady()) return authSignup({ name: data.name, email: email, phone: data.phone, password: data.password });
+    if (state.users.some(function (u) { return u.email.toLowerCase() === email; })) return Promise.resolve({ ok: false, error: 'Já existe uma conta cadastrada com este e-mail.' });
     var u = { id: uid('user'), name: String(data.name).trim(), email: email, phone: maskPhone(data.phone), password: data.password, role: 'client', createdAt: iso(0) };
     state.users.push(u);
     state.currentUser = u;
     persist();
-    sbUpsert('users', u);
     notify('Conta criada com sucesso! Seja bem-vindo à EDY-K.');
-    return { ok: true, user: u };
+    return Promise.resolve({ ok: true, user: u });
   }
-  function logout() { state.currentUser = null; persist(); notify('Você saiu da sua conta.', 'info'); }
+  function logout() {
+    notify('Você saiu da sua conta.', 'info');
+    return authLogout();
+  }
 
   function addToCart(id, qty) {
     var p = state.products.find(function (x) { return x.id === id; });
@@ -920,7 +1065,9 @@
       h += '<form class="mt-3" data-form="register"><label class="field"><span>Nome completo</span><input name="name" required minlength="3" placeholder="Seu nome"></label><label class="field"><span>E-mail</span><input name="email" type="email" required placeholder="voce@email.com"></label><label class="field"><span>Telefone</span><input name="phone" required data-mask="phone" placeholder="(11) 99999-0000"></label><label class="field"><span>Senha</span><input name="password" type="password" required minlength="6" placeholder="Mínimo 6 caracteres"></label><button class="btn btn-primary btn-block btn-lg" type="submit">Criar conta</button></form>';
     } else {
       h += '<form class="mt-3" data-form="login"><label class="field"><span>E-mail</span><input name="email" type="email" required placeholder="voce@email.com"></label><label class="field"><span>Senha</span><input name="password" type="password" required placeholder="Sua senha"></label><button class="btn btn-primary btn-block btn-lg" type="submit">Entrar</button></form>' +
-        '<div class="divider"></div><div class="eyebrow center">Acesso rápido (demonstração)</div><div class="grid grid-2 mt-2"><button class="btn btn-sm" data-act="quick-login" data-email="cliente@edyk.com">Entrar como cliente</button><button class="btn btn-sm" data-act="quick-login" data-email="admin@edyk.com">Entrar como admin</button></div>';
+        (sbReady()
+          ? '<p class="small muted mt-3">Acesso gerenciado pelo Supabase Auth. Use o e-mail e a senha cadastrados no Supabase.</p>'
+          : '<div class="divider"></div><div class="eyebrow center">Acesso rápido (demonstração)</div><div class="grid grid-2 mt-2"><button class="btn btn-sm" data-act="quick-login" data-email="cliente@edyk.com">Entrar como cliente</button><button class="btn btn-sm" data-act="quick-login" data-email="admin@edyk.com">Entrar como admin</button></div>');
     }
     return h + '</div></div></section>';
   }
@@ -972,16 +1119,17 @@
     var cfg = CRUD[f.kind];
     var values = f.values || {};
     return '<div class="modal-wrap"><div class="overlay" data-act="admin-form-close"></div><form class="modal" data-form="admin-form"><div class="row-between"><h2>' + (f.id ? 'Editar' : 'Novo') + ' · ' + cfg.title + '</h2><button type="button" class="icon-btn" data-act="admin-form-close">' + ic('x') + '</button></div>' +
-      '<div class="form-grid mt-3">' + cfg.fields.map(function (field) { return fieldHTML(field, values[field.k]); }).join('') + '</div>' +
-      (f.kind === 'users' && f.id ? '<p class="small muted mt-2">Deixe a senha em branco para manter a atual.</p>' : '') +
+      '<div class="form-grid mt-3">' + cfg.fields.filter(function (field) { return !(sbReady() && f.kind === 'users' && field.k === 'password'); }).map(function (field) { return fieldHTML(field, values[field.k]); }).join('') + '</div>' +
+      (f.kind === 'users' && sbReady() ? '<p class="small muted mt-2">Senha e role de acesso são gerenciados no Supabase Auth.</p>' : (f.kind === 'users' && f.id ? '<p class="small muted mt-2">Deixe a senha em branco para manter a atual.</p>' : '')) +
       '<div class="row mt-3"><button class="btn btn-primary" type="submit">Salvar</button><button class="btn" type="button" data-act="admin-form-close">Cancelar</button></div></form></div>';
   }
 
   function adminCRUD(kind) {
     var cfg = CRUD[kind], list = state[cfg.key], isUsers = kind === 'users';
-    var heads = cfg.fields.slice(0, 4).map(function (f) { return '<th>' + esc(f.l) + '</th>'; }).join('');
+    var visibleFields = isUsers && sbReady() ? cfg.fields.filter(function (f) { return f.k !== 'password'; }).slice(0, 3) : cfg.fields.slice(0, 4);
+    var heads = visibleFields.map(function (f) { return '<th>' + esc(f.l) + '</th>'; }).join('');
     var rows = list.map(function (item) {
-      var cells = cfg.fields.slice(0, 4).map(function (f) {
+      var cells = visibleFields.map(function (f) {
         var v = item[f.k];
         if (f.k === 'password') v = '••••••';
         return '<td>' + (Array.isArray(v) ? esc(v.join(',')) : esc(v)) + '</td>';
@@ -1056,7 +1204,7 @@
       : sb.ok ? 'Conectado' : 'Erro de conexão');
     var badge = !sbReady() ? 'warn' : (sb.checked && sb.ok ? 'ok' : (sb.checked ? 'bad' : 'warn'));
     return '<div><div class="eyebrow">Banco de dados</div><h2>Supabase</h2>' +
-      '<p class="muted small mt-2">Usuários e produtos são lidos e gravados diretamente no Supabase via REST. Os demais dados (agendamentos, pedidos, pontos etc.) continuam no armazenamento local.</p>' +
+      '<p class="muted small mt-2">Login/cadastro usam Supabase Auth. Perfis e produtos são protegidos por RLS: visitantes veem apenas produtos ativos; somente uma sessão admin pode gravar. Os demais dados (agendamentos, pedidos, pontos etc.) continuam locais.</p>' +
       '<div class="card mt-3"><div class="row-between wrap"><div><div class="eyebrow">Status</div><h3 class="mt-1">' + esc(status) + '</h3></div><span class="badge ' + badge + '">' + esc(partial ? 'incompleto' : sbReady() ? (sb.checked ? (sb.ok ? 'online' : 'falhou') : 'configurado') : 'offline') + '</span></div>' +
       (sb.error ? '<p class="small mt-2" style="color:var(--danger);word-break:break-all">' + esc(sb.error) + '</p>' : '') + '</div>' +
       '<form class="card mt-3" data-form="supabase-config"><h3>Conexão</h3><div class="form-grid mt-3">' +
@@ -1065,12 +1213,12 @@
       '<p class="small muted mt-2">A anon key é pública e pode ficar no front-end. Nunca coloque a <strong>service_role</strong> aqui — ela deve permanecer apenas no servidor.</p>' +
       '<div class="row wrap mt-3"><button class="btn btn-primary" type="submit">Salvar e conectar</button>' +
       '<button class="btn" type="button" data-act="sb-connect"' + (sbReady() ? '' : ' disabled') + '>Testar conexão</button>' +
-      '<button class="btn" type="button" data-act="sb-publish"' + (sbReady() ? '' : ' disabled') + '>Publicar dados iniciais</button>' +
+      '<button class="btn" type="button" data-act="sb-publish"' + (sbReady() ? '' : ' disabled') + '>Publicar produtos iniciais</button>' +
       '<button class="btn btn-danger" type="button" data-act="sb-test"' + (sbReady() && !(test && test.running) ? '' : ' disabled') + '>' + (test && test.running ? 'Testando...' : 'Testar insert/exclusão') + '</button></div></form>' +
       (test ? '<div class="card mt-3"><div class="row-between"><h3>Resultado do teste</h3><span class="badge ' + (test.running ? 'warn' : test.ok ? 'ok' : 'bad') + '">' + (test.running ? 'em andamento' : test.ok ? 'passou' : 'falhou') + '</span></div><div class="mt-3">' +
         test.steps.map(function (s) { return '<div class="row-between small" style="padding:8px 0;border-bottom:1px solid var(--border)"><span>' + esc(s.text) + '</span><span style="color:' + (s.ok ? 'var(--gold)' : 'var(--danger)') + '">' + (s.ok ? 'OK' : 'FALHA') + '</span></div>'; }).join('') +
         '</div></div>' : '') +
-      '<p class="muted small mt-3">Antes de usar, execute <code>supabase.sql</code> no SQL Editor do projeto para criar as tabelas e as políticas RLS. O teste cria um usuário e um produto temporários, consulta ambos e depois os exclui. Também é possível rodar <code>node test-supabase.mjs</code> no terminal.</p></div>';
+      '<p class="muted small mt-3">Execute <code>supabase.sql</code> no SQL Editor, crie os usuários no Supabase Auth e marque o admin conforme as instruções do README. O teste valida a permissão de admin, cria/consulta/exclui um produto temporário e confirma que um visitante anônimo vê apenas produtos ativos. No terminal, use <code>node test-supabase.mjs</code> com as credenciais do admin.</p></div>';
   }
 
   function viewAdmin() {
@@ -1215,11 +1363,14 @@
       case 'shop-cat': ui.shopCat = el.getAttribute('data-cat'); renderView(); break;
       case 'auth-tab': ui.authTab = el.getAttribute('data-tab'); renderView(); break;
       case 'quick-login': {
-        var res = login(el.getAttribute('data-email'), el.getAttribute('data-email').indexOf('admin') === 0 ? 'admin123' : '123456');
-        if (res.ok) nav(ui.view === 'admin' || location.hash.indexOf('admin') >= 0 ? 'admin' : 'home');
+        var emailQL = el.getAttribute('data-email');
+        login(emailQL, emailQL.indexOf('admin') === 0 ? 'admin123' : '123456').then(function (res) {
+          if (res.ok) nav(ui.view === 'admin' || location.hash.indexOf('admin') >= 0 ? 'admin' : 'home');
+          else notify(res.error, 'error');
+        });
         break;
       }
-      case 'logout': logout(); nav('home'); break;
+      case 'logout': logout().then(function () { nav('home'); }); break;
       case 'admin-tab': ui.adminTab = el.getAttribute('data-tab'); renderView(); break;
       case 'admin-new': {
         var kindNew = el.getAttribute('data-kind');
@@ -1246,8 +1397,8 @@
           state[CRUD[k2].key] = state[CRUD[k2].key].filter(function (x) { return x.id !== id; });
           if (k2 === 'products') state.cart = state.cart.filter(function (i) { return i.productId !== id; });
           persist();
-          if (k2 === 'users' || k2 === 'products') sbRemove(k2, id);
-          render(); notify(k2 === 'users' ? 'Usuário removido.' : 'Item removido.', 'info');
+          if (k2 === 'products') sbRemove(k2, id);
+          render(); notify(k2 === 'users' ? 'Usuário removido localmente. Contas de acesso são gerenciadas no Supabase Auth.' : 'Item removido.', 'info');
         }
         break;
       }
@@ -1285,12 +1436,15 @@
     var res, cfg, item, obj;
     switch (form) {
       case 'login':
-        res = login(fd.get('email'), fd.get('password'));
-        if (!res.ok) notify(res.error, 'error'); else nav(user().role === 'admin' && location.hash.indexOf('admin') >= 0 ? 'admin' : 'home');
+        login(fd.get('email'), fd.get('password')).then(function (res) {
+          if (!res.ok) notify(res.error, 'error');
+          else nav(user() && user().role === 'admin' && location.hash.indexOf('admin') >= 0 ? 'admin' : 'home');
+        });
         break;
       case 'register':
-        res = register({ name: fd.get('name'), email: fd.get('email'), phone: fd.get('phone'), password: fd.get('password') });
-        if (!res.ok) notify(res.error, 'error'); else nav('home');
+        register({ name: fd.get('name'), email: fd.get('email'), phone: fd.get('phone'), password: fd.get('password') }).then(function (res) {
+          if (!res.ok) notify(res.error, 'error'); else nav('home');
+        });
         break;
       case 'booking': confirmBooking(fd); break;
       case 'review': submitReview(fd, ui.reviewFor); break;
@@ -1313,11 +1467,15 @@
           if (state.users.some(function (x) { return x.id !== ui.adminForm.id && x.email.toLowerCase() === obj.email; })) {
             notify('Já existe um usuário com este e-mail.', 'error'); return;
           }
-          if (!obj.password && ui.adminForm.id) {
-            var existingUser = state.users.find(function (x) { return x.id === ui.adminForm.id; });
-            if (existingUser) obj.password = existingUser.password;
+          if (!sbReady()) {
+            if (!obj.password && ui.adminForm.id) {
+              var existingUser = state.users.find(function (x) { return x.id === ui.adminForm.id; });
+              if (existingUser) obj.password = existingUser.password;
+            }
+            if (!obj.password) { notify('Informe a senha do usuário.', 'error'); return; }
+          } else {
+            obj.password = '';
           }
-          if (!obj.password) { notify('Informe a senha do usuário.', 'error'); return; }
         }
         if (ui.adminForm.id) {
           item = state[cfg.key].find(function (x) { return x.id === ui.adminForm.id; });
@@ -1329,7 +1487,8 @@
           state[cfg.key].unshift(obj);
           notify('Item cadastrado com sucesso.');
         }
-        if (syncedKind === 'users' || syncedKind === 'products') sbUpsert(syncedKind, item || obj);
+        if (syncedKind === 'products') sbUpsert(syncedKind, item || obj);
+        else if (syncedKind === 'users' && sbReady()) notify('Perfil local atualizado. Dados de acesso ficam no Supabase Auth.', 'info');
         ui.adminForm = null; persist(); render();
         break;
       case 'supabase-config': {
