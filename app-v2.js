@@ -99,11 +99,11 @@
       { id: 'rev-1', appointmentId: 'apt-107', userId: 'user-client-3', clientName: 'Gabriel Costa', barberId: 'barber-1', barberName: 'Edy Oliveira', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', serviceRating: 5, barberRating: 5, comment: '"Qualidade existe quando há atenção aos mínimos detalhes."', status: 'approved', createdAt: iso(-1) },
       { id: 'rev-2', appointmentId: 'apt-108', userId: 'user-client-4', clientName: 'Thiago Nogueira', barberId: 'barber-2', barberName: 'Kauê Mendes', serviceId: 'srv-1', serviceName: 'Corte Degradê', serviceRating: 5, barberRating: 5, comment: 'O Edy manda muito bem no degradê baixo e no acabamento. Ambiente top e atendimento rápido.', status: 'approved', createdAt: iso(-3) },
       { id: 'rev-3', appointmentId: 'apt-106', userId: 'user-client-2', clientName: 'Matheus Almeida', barberId: 'barber-3', barberName: 'Ricardo Silva', serviceId: 'srv-4', serviceName: 'Corte Social na Tesoura', serviceRating: 5, barberRating: 5, comment: 'Corte todo na tesoura muito bem alinhado, respeitou o caimento natural do cabelo. Recomendo demais.', status: 'approved', createdAt: iso(-2) },
-      { id: 'rev-4', appointmentId: 'apt-109', userId: 'user-client-2', clientName: 'Matheus Almeida', barberId: 'barber-1', barberName: 'Edy Oliveira', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', serviceRating: 5, barberRating: 5, comment: 'Sempre saio satisfeito. Agendei pelo app, paguei no Pix e não esperei nem 2 minutos.', status: 'approved', createdAt: iso(-5) }
+      { id: 'rev-4', appointmentId: 'apt-109', userId: 'user-client-2', clientName: 'Matheus Almeida', barberId: 'barber-1', barberName: 'Edy Oliveira', serviceId: 'srv-2', serviceName: 'Combo Corte + Barba', serviceRating: 5, barberRating: 5, comment: 'Sempre saio satisfeito. Agendei pelo aplicativo, paguei no Pix e não esperei nem 2 minutos.', status: 'approved', createdAt: iso(-5) }
     ],
     loyaltyConfig: { enabled: true, pointsPerRealService: 2, bookingBonusPoints: 25, pointsPerRealProduct: 1, productBonusPoints: 15 },
     rewards: [
-      { id: 'rew-1', title: 'Desconto de R$ 15 em Serviços', description: 'Válido para qualquer corte, barba ou combo agendado pelo app.', pointsCost: 150, discountAmount: 15, appliesTo: 'service', active: true },
+      { id: 'rew-1', title: 'Desconto de R$ 15 em Serviços', description: 'Válido para qualquer corte, barba ou combo agendado pelo aplicativo.', pointsCost: 150, discountAmount: 15, appliesTo: 'service', active: true },
       { id: 'rew-2', title: 'R$ 20 de desconto na Loja EDY-K', description: 'Use na compra de pomadas, óleos para barba, shampoos ou kits.', pointsCost: 180, discountAmount: 20, appliesTo: 'product', active: true },
       { id: 'rew-3', title: 'Desconto VIP de R$ 35', description: 'Benefício flexível válido tanto para serviços na cadeira quanto produtos.', pointsCost: 320, discountAmount: 35, appliesTo: 'both', active: true },
       { id: 'rew-4', title: 'Combo Corte + Barba (R$ 50 de desconto)', description: 'Recompensa máxima para clientes frequentes da Barbearia Edyk.', pointsCost: 500, discountAmount: 50, appliesTo: 'service', active: true }
@@ -221,7 +221,9 @@
       'Kit Executivo EDY-K Signature': 'Kit Executivo EDY-K Exclusivo',
       'R$ 20 OFF na Loja EDY-K': 'R$ 20 de desconto na Loja EDY-K',
       'Combo Corte + Barba (R$ 50 OFF)': 'Combo Corte + Barba (R$ 50 de desconto)',
-      'O Edy manda muito bem no low fade': 'O Edy manda muito bem no degradê baixo'
+      'O Edy manda muito bem no low fade': 'O Edy manda muito bem no degradê baixo',
+      'Agendei pelo app': 'Agendei pelo aplicativo',
+      'agendado pelo app': 'agendado pelo aplicativo'
     };
     function fix(v) {
       if (typeof v === 'string') {
