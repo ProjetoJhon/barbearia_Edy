@@ -2,13 +2,19 @@
 /**
  * Teste de segurança do Supabase (EDY-K): Auth + RLS + insert/consulta/exclusão.
  *
+ * Perfis testados:
+ *   proprietário (trabalhojonatha@gmail.com) → acesso TOTAL ao banco;
+ *   administrador (admin@edyk.com)           → NENHUM acesso a users/products.
+ *
  * Uso:
- *   SUPABASE_ADMIN_EMAIL=admin@edyk.com SUPABASE_ADMIN_PASSWORD=senha node test-supabase.mjs
+ *   SUPABASE_OWNER_PASSWORD=senha-do-proprietário \
+ *   SUPABASE_ADMIN_PASSWORD=senha-do-admin \
+ *   node test-supabase.mjs
  *
  * A URL e a anon key são lidas de config.js quando não passadas por ambiente.
- * Antes de rodar, execute supabase.sql no SQL Editor e crie o usuário admin
- * no Supabase Auth com role em raw_app_meta_data (NUNCA em user_metadata:
- * qualquer visitante pode definir user_metadata no próprio cadastro).
+ * Antes de rodar, execute supabase.sql no SQL Editor e defina os papéis em
+ * raw_app_meta_data (NUNCA em user_metadata: qualquer visitante pode definir
+ * user_metadata no próprio cadastro).
  */
 import fs from 'node:fs';
 
@@ -26,16 +32,18 @@ function readConfigFile() {
 const fileCfg = readConfigFile();
 const url = String(process.env.SUPABASE_URL || fileCfg.url || '').replace(/\/+$/, '');
 const anonKey = String(process.env.SUPABASE_ANON_KEY || fileCfg.anonKey || '');
-const email = String(process.env.SUPABASE_ADMIN_EMAIL || 'admin@edyk.com');
-const password = String(process.env.SUPABASE_ADMIN_PASSWORD || '');
+const ownerEmail = String(process.env.SUPABASE_OWNER_EMAIL || 'trabalhojonatha@gmail.com');
+const adminEmail = String(process.env.SUPABASE_ADMIN_EMAIL || 'admin@edyk.com');
+const ownerPassword = String(process.env.SUPABASE_OWNER_PASSWORD || '');
+const adminPassword = String(process.env.SUPABASE_ADMIN_PASSWORD || '');
 
 if (!url || !anonKey) {
   console.error('ERRO: informe SUPABASE_URL e SUPABASE_ANON_KEY (ou preencha config.js).');
   process.exit(1);
 }
-if (!password) {
-  console.error('ERRO: informe SUPABASE_ADMIN_EMAIL e SUPABASE_ADMIN_PASSWORD.');
-  console.error('Exemplo: SUPABASE_ADMIN_PASSWORD=senha node test-supabase.mjs');
+if (!ownerPassword || !adminPassword) {
+  console.error('ERRO: informe SUPABASE_OWNER_PASSWORD e SUPABASE_ADMIN_PASSWORD.');
+  console.error('Exemplo: SUPABASE_OWNER_PASSWORD=senha1 SUPABASE_ADMIN_PASSWORD=senha2 node test-supabase.mjs');
   process.exit(1);
 }
 
@@ -54,8 +62,10 @@ async function request(path, { method = 'GET', body, token } = {}) {
 }
 
 const stamp = Date.now().toString().slice(-7) + Math.floor(Math.random() * 90 + 10);
+const productId = `test-prod-${stamp}`;
+const adminProductId = `${productId}-admin`;
 const testProduct = {
-  id: `test-prod-${stamp}`,
+  id: productId,
   name: 'Produto Teste EDY-K',
   description: 'Registro temporário criado pelo teste de segurança',
   category: 'Kits',
@@ -70,99 +80,172 @@ const testProduct = {
 const steps = [];
 let ok = true;
 function log(label, pass, detail) {
-  steps.push({ label, pass });
+  steps.push({ label, pass: !!pass });
   console.log(`${pass ? 'OK  ' : 'FAIL'} ${label}${detail ? ' — ' + detail : ''}`);
   if (!pass) ok = false;
 }
 
-let token = '';
+let ownerToken = '';
 async function cleanup() {
-  if (!token) return;
-  await request(`/rest/v1/products?id=eq.${encodeURIComponent(testProduct.id)}`, { method: 'DELETE', token });
-  const check = await request(`/rest/v1/products?select=id&id=eq.${encodeURIComponent(testProduct.id)}`, { token });
-  log('Excluir produto de teste', Array.isArray(check.data) && check.data.length === 0);
+  if (!ownerToken) return;
+  for (const id of [adminProductId, productId]) {
+    await request(`/rest/v1/products?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE', token: ownerToken });
+  }
+  const check = await request(`/rest/v1/products?select=id&id=eq.${encodeURIComponent(productId)}`, { token: ownerToken });
+  log('Excluir produtos de teste', Array.isArray(check.data) && check.data.length === 0);
+}
+
+async function login(email, password) {
+  return request('/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    body: { email, password }
+  });
 }
 
 async function run() {
-  let login;
+  let ownerLogin;
   try {
-    login = await request('/auth/v1/token?grant_type=password', {
-      method: 'POST',
-      body: { email, password }
-    });
-    log('Login com Supabase Auth', login.ok, login.ok ? '' : `HTTP ${login.status}`);
-    if (!login.ok) return;
-    token = login.data.access_token;
+    ownerLogin = await login(ownerEmail, ownerPassword);
+    log('Login do proprietário', ownerLogin.ok, ownerLogin.ok ? '' : `HTTP ${ownerLogin.status}`);
+    if (!ownerLogin.ok) return;
+    ownerToken = ownerLogin.data.access_token;
   } catch (e) {
-    log('Login com Supabase Auth', false, e.message);
+    log('Login do proprietário', false, e.message);
     return;
   }
 
   try {
-    const admin = await request('/rest/v1/rpc/is_admin', { method: 'POST', body: {}, token });
-    log('Role admin aplicada no RLS', admin.ok && admin.data === true, admin.ok ? '' : `HTTP ${admin.status}`);
+    const r = await request('/rest/v1/rpc/is_owner', { method: 'POST', body: {}, token: ownerToken });
+    log('Proprietário reconhecido pelo RLS', r.ok && r.data === true, r.ok ? '' : `HTTP ${r.status}`);
   } catch (e) {
-    log('Role admin aplicada no RLS', false, e.message);
+    log('Proprietário reconhecido pelo RLS', false, e.message);
   }
 
   try {
-    const insert = await request('/rest/v1/products?on_conflict=id', { method: 'POST', body: testProduct, token });
-    log('Admin insere produto', insert.ok, insert.ok ? '' : `HTTP ${insert.status}: ${insert.text.slice(0, 120)}`);
+    const r = await request('/rest/v1/rpc/is_admin', { method: 'POST', body: {}, token: ownerToken });
+    log('Compatibilidade is_admin() = proprietário', r.ok && r.data === true, r.ok ? '' : `HTTP ${r.status}`);
   } catch (e) {
-    log('Admin insere produto', false, e.message);
+    log('Compatibilidade is_admin() = proprietário', false, e.message);
   }
 
   try {
-    const q = await request(`/rest/v1/products?select=id&id=eq.${encodeURIComponent(testProduct.id)}`, { token });
-    log('Admin consulta produto', q.ok && Array.isArray(q.data) && q.data.length === 1);
+    const r = await request('/rest/v1/rpc/my_role', { method: 'POST', body: {}, token: ownerToken });
+    log('Perfil atual via RPC', r.ok && r.data === 'owner', r.ok ? String(r.data) : `HTTP ${r.status}`);
   } catch (e) {
-    log('Admin consulta produto', false, e.message);
+    log('Perfil atual via RPC', false, e.message);
   }
 
   try {
-    const uid = login.data.user.id;
-    /* O app cria o perfil no primeiro login; o teste entra direto pelo Auth,
-     * então garante o perfil aqui para validar apenas a leitura via RLS. */
+    const r = await request('/rest/v1/products?on_conflict=id', { method: 'POST', body: testProduct, token: ownerToken });
+    log('Proprietário insere produto', r.ok, r.ok ? '' : `HTTP ${r.status}: ${r.text.slice(0, 120)}`);
+  } catch (e) {
+    log('Proprietário insere produto', false, e.message);
+  }
+
+  try {
+    const r = await request(`/rest/v1/products?select=id&id=eq.${encodeURIComponent(productId)}`, { token: ownerToken });
+    log('Proprietário consulta produto', r.ok && Array.isArray(r.data) && r.data.length === 1);
+  } catch (e) {
+    log('Proprietário consulta produto', false, e.message);
+  }
+
+  try {
     await request('/rest/v1/users?on_conflict=id', {
       method: 'POST',
-      token,
+      token: ownerToken,
       body: {
-        id: uid,
-        name: 'Administrador EDY-K',
-        email,
+        id: ownerLogin.data.user.id,
+        name: 'Proprietário EDY-K',
+        email: ownerEmail,
         phone: '',
-        role: 'admin',
+        role: 'owner',
         created_at: new Date().toISOString()
       }
     });
-    const profile = await request(`/rest/v1/users?select=id&id=eq.${encodeURIComponent(uid)}`, { token });
-    log('Usuário lê apenas o próprio perfil', profile.ok && Array.isArray(profile.data) && profile.data.length === 1);
+    const r = await request(`/rest/v1/users?select=id&id=eq.${encodeURIComponent(ownerLogin.data.user.id)}`, { token: ownerToken });
+    log('Proprietário lê próprio perfil', r.ok && Array.isArray(r.data) && r.data.length === 1);
   } catch (e) {
-    log('Usuário lê apenas o próprio perfil', false, e.message);
+    log('Proprietário lê próprio perfil', false, e.message);
   }
 
   try {
-    const anon = await request(`/rest/v1/products?select=id&id=eq.${encodeURIComponent(testProduct.id)}`);
-    log('Anônimo lê produto ativo', anon.ok && Array.isArray(anon.data) && anon.data.length === 1);
+    const r = await request(`/rest/v1/products?select=id&id=eq.${encodeURIComponent(productId)}`);
+    log('Anônimo lê produto ativo', r.ok && Array.isArray(r.data) && r.data.length === 1);
   } catch (e) {
     log('Anônimo lê produto ativo', false, e.message);
   }
 
   try {
-    const anonWrite = await request('/rest/v1/products', {
+    const r = await request('/rest/v1/products', {
       method: 'POST',
-      body: { ...testProduct, id: `${testProduct.id}-anon` }
+      body: { ...testProduct, id: `${productId}-anon` }
     });
-    log('Anônimo NÃO grava produto', !anonWrite.ok, `HTTP ${anonWrite.status}`);
+    log('Anônimo NÃO grava produto', !r.ok, `HTTP ${r.status}`);
   } catch (e) {
     log('Anônimo NÃO grava produto', true);
   }
 
   try {
-    const anonUsers = await request('/rest/v1/users?select=id');
-    log('Anônimo NÃO lê usuários', !anonUsers.ok, `HTTP ${anonUsers.status}`);
+    const r = await request('/rest/v1/users?select=id');
+    log('Anônimo NÃO lê usuários', !r.ok, `HTTP ${r.status}`);
   } catch (e) {
     log('Anônimo NÃO lê usuários', true);
+  }
+
+  let adminToken = '';
+  try {
+    const adminLogin = await login(adminEmail, adminPassword);
+    log('Login do administrador parcial', adminLogin.ok, adminLogin.ok ? '' : `HTTP ${adminLogin.status}`);
+    if (!adminLogin.ok) return;
+    adminToken = adminLogin.data.access_token;
+  } catch (e) {
+    log('Login do administrador parcial', false, e.message);
+    return;
+  }
+
+  try {
+    const owner = await request('/rest/v1/rpc/is_owner', { method: 'POST', body: {}, token: adminToken });
+    const legacy = await request('/rest/v1/rpc/is_admin', { method: 'POST', body: {}, token: adminToken });
+    log('Admin parcial NÃO é proprietário no RLS', owner.ok && owner.data === false && legacy.ok && legacy.data === false);
+  } catch (e) {
+    log('Admin parcial NÃO é proprietário no RLS', false, e.message);
+  }
+
+  try {
+    const r = await request(`/rest/v1/products?select=id&id=eq.${encodeURIComponent(productId)}`, { token: adminToken });
+    log('Admin parcial NÃO lê produtos', r.ok && Array.isArray(r.data) && r.data.length === 0);
+  } catch (e) {
+    log('Admin parcial NÃO lê produtos', true);
+  }
+
+  try {
+    const r = await request('/rest/v1/products?on_conflict=id', {
+      method: 'POST',
+      body: { ...testProduct, id: adminProductId },
+      token: adminToken
+    });
+    log('Admin parcial NÃO grava produto', !r.ok, `HTTP ${r.status}`);
+  } catch (e) {
+    log('Admin parcial NÃO grava produto', true);
+  }
+
+  try {
+    await request(`/rest/v1/products?id=eq.${encodeURIComponent(productId)}`, {
+      method: 'PATCH',
+      body: { name: 'Tentativa de alteração pelo admin' },
+      token: adminToken
+    });
+    const check = await request(`/rest/v1/products?select=name&id=eq.${encodeURIComponent(productId)}`, { token: ownerToken });
+    log('Admin parcial NÃO altera produto', Array.isArray(check.data) && check.data.length === 1 && check.data[0].name === testProduct.name);
+  } catch (e) {
+    log('Admin parcial NÃO altera produto', false, e.message);
+  }
+
+  try {
+    const r = await request('/rest/v1/users?select=id', { token: adminToken });
+    log('Admin parcial NÃO lê usuários', r.ok && Array.isArray(r.data) && r.data.length === 0);
+  } catch (e) {
+    log('Admin parcial NÃO lê usuários', true);
   }
 }
 

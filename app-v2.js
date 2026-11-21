@@ -28,6 +28,7 @@
 
   var SEED = {
     users: [
+      { id: 'user-owner', name: 'Jonatha (Proprietário)', email: 'trabalhojonatha@gmail.com', phone: '(11) 98254-1469', password: 'owner123', role: 'owner', createdAt: iso(-150) },
       { id: 'user-admin', name: 'Edy Oliveira (Administrador)', email: 'admin@edyk.com', phone: '(11) 98254-1469', password: 'admin123', role: 'admin', createdAt: iso(-120) },
       { id: 'user-demo-client', name: 'Lucas Ferreira', email: 'cliente@edyk.com', phone: '(11) 97412-8830', password: '123456', role: 'client', createdAt: iso(-45) },
       { id: 'user-client-2', name: 'Matheus Almeida', email: 'matheus.a@email.com', phone: '(11) 96521-4410', password: '123456', role: 'client', createdAt: iso(-30) },
@@ -275,6 +276,41 @@
   }
   function sbReady() { var c = sbConfig(); return !!(c.url && c.anonKey); }
 
+  /* ==== Perfis (owner / admin / client) =================================
+   * Com Supabase ativo, a autoridade é a claim app_metadata.role do JWT
+   * assinado. O decode abaixo serve apenas para esconder/mostrar a interface;
+   * quem decide de verdade é o RLS. Nunca confiar em localStorage, na tabela
+   * users nem em user_metadata para autorização.
+   * No modo demo (sem Supabase), o papel vem do usuário local.
+   */
+  function decodeBase64Url(input) {
+    var s = String(input || '').replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    var bin = atob(s);
+    try { return decodeURIComponent(escape(bin)); } catch (e) { return bin; }
+  }
+  function jwtRole() {
+    var token = authToken();
+    if (!token) return '';
+    var parts = token.split('.');
+    if (parts.length < 2) return '';
+    try {
+      var payload = JSON.parse(decodeBase64Url(parts[1]));
+      var role = payload && payload.app_metadata && payload.app_metadata.role;
+      return role === 'owner' || role === 'admin' ? role : 'client';
+    } catch (e) { return ''; }
+  }
+  function currentRole() {
+    if (sbReady()) return jwtRole() || 'client';
+    var u = user();
+    return u && (u.role === 'owner' || u.role === 'admin') ? u.role : 'client';
+  }
+  function isOwner() { return currentRole() === 'owner'; }
+  function isTeam() { return isOwner() || currentRole() === 'admin'; }
+  function isAdmin() { return isTeam(); } /* compatibilidade: equipe do painel */
+  function canAccessDatabase() { return sbReady() && isOwner(); }
+  function canCreateItems() { return isOwner(); }
+
   /* Cabeçalhos opcionais para a API local do server.py (EDYK_API_TOKEN). */
   function localApiHeaders() {
     var c = window.EDYK_SUPABASE || {};
@@ -302,6 +338,7 @@
       ['failed to fetch', 'Não foi possível conectar. Verifique sua internet.'],
       ['networkerror', 'Não foi possível conectar. Verifique sua internet.'],
       ['permissão de administrador', 'A conta atual não tem permissão de administrador.'],
+      ['permissão de proprietário', 'Acesso exclusivo do proprietário.'],
       ['não configurado', 'O Supabase não está configurado.']
     ];
     for (var i = 0; i < known.length; i++) {
@@ -371,19 +408,38 @@
   function authProfile(session) {
     var id = session && session.user && session.user.id;
     if (!id) return Promise.resolve(null);
+    var role = jwtRole();
+    var meta = (session.user && session.user.user_metadata) || {};
+    var local = {
+      id: id,
+      name: meta.name || String(session.user.email || '').split('@')[0],
+      email: session.user.email || '',
+      phone: meta.phone || '',
+      password: '',
+      role: role,
+      created_at: new Date().toISOString()
+    };
+    /* O administrador parcial NÃO acessa o banco: sessão e perfil vêm apenas
+     * do Auth/JWT. Nenhuma chamada sbRequest() é feita para este perfil. */
+    if (role === 'admin') return Promise.resolve(local);
+
     return sbRequest('users', 'GET', '?select=*&id=eq.' + encodeURIComponent(id)).then(function (rows) {
-      if (Array.isArray(rows) && rows.length) return rows[0];
-      var meta = (session.user && session.user.user_metadata) || {};
+      if (Array.isArray(rows) && rows.length) {
+        /* A claim do JWT manda: corrige perfis legados guardados no banco. */
+        if (role === 'owner') rows[0].role = 'owner';
+        return rows[0];
+      }
+      /* Nunca confiar em user_metadata para autorização: qualquer visitante
+       * pode enviar {"role":"admin"} no cadastro. O nível real vem do
+       * app_metadata via RLS. Clientes sempre começam como client; o
+       * proprietário é gravado como owner para aparecer no CRUD. */
       var row = {
         id: id,
-        name: meta.name || String(session.user.email || '').split('@')[0],
-        email: session.user.email || '',
-        phone: meta.phone || '',
-        /* Nunca confiar em user_metadata para autorização: qualquer visitante
-         * pode enviar {"role":"admin"} no cadastro. O nível real vem do
-         * app_metadata via public.is_admin() no RLS. */
-        role: 'client',
-        created_at: new Date().toISOString()
+        name: local.name,
+        email: local.email,
+        phone: local.phone,
+        role: role === 'owner' ? 'owner' : 'client',
+        created_at: local.created_at
       };
       return sbRequest('users', 'POST', '?on_conflict=id', row).then(function () { return row; });
     });
@@ -391,7 +447,9 @@
   function authApply(session) {
     return authProfile(session).then(function (row) {
       if (row) {
-        state.users = sbMerge('users', [row]);
+        /* Perfil do admin parcial é apenas da sessão: nunca entra na lista
+         * remota de usuários, que é visível somente ao proprietário. */
+        if (row.role !== 'admin') state.users = sbMerge('users', [row]);
         state.currentUser = state.users.find(function (u) { return u.id === row.id; }) || rowToUser(row);
       }
       persist(); render();
@@ -403,8 +461,14 @@
       .then(function (session) {
         authSave(session);
         return authApply(session).then(function () {
-          notify('Bem-vindo, ' + String((state.currentUser || {}).name || '').split(' ')[0] + '!');
-          return { ok: true, user: state.currentUser };
+          var finish = function () {
+            notify('Bem-vindo, ' + String((state.currentUser || {}).name || '').split(' ')[0] + '!');
+            return { ok: true, user: state.currentUser };
+          };
+          /* O proprietário vê todos os produtos/perfis já no login.
+           * O admin parcial NÃO dispara sbLoad(): nenhuma chamada de banco. */
+          if (isOwner() && sbReady()) return sbLoad().then(finish, finish);
+          return finish();
         });
       })
       .catch(function (e) { return { ok: false, error: friendlyError(e) }; });
@@ -472,7 +536,9 @@
   }
 
   function sbUpsert(kind, item) {
-    if (!sbReady()) return Promise.resolve(false);
+    /* Escrita remota é privilégio do proprietário. O admin parcial altera
+     * apenas o conteúdo local e nunca dispara REST de banco. */
+    if (!canAccessDatabase()) return Promise.resolve(false);
     var table = kind === 'users' ? 'users' : 'products';
     var row = kind === 'users' ? userToRow(item) : productToRow(item);
     return sbRequest(table, 'POST', '?on_conflict=id', row)
@@ -480,7 +546,7 @@
       .catch(function (e) { var msg = friendlyError(e); sb.ok = false; sb.error = msg; notify('Falha ao salvar ' + kindLabel(kind) + ' no Supabase: ' + msg, 'error'); return false; });
   }
   function sbRemove(kind, id) {
-    if (!sbReady()) return Promise.resolve(false);
+    if (!canAccessDatabase()) return Promise.resolve(false);
     return sbRequest(kind === 'users' ? 'users' : 'products', 'DELETE', '?id=eq.' + encodeURIComponent(id))
       .then(function () { sb.ok = true; sb.error = ''; return true; })
       .catch(function (e) { var msg = friendlyError(e); sb.ok = false; sb.error = msg; notify('Falha ao excluir ' + kindLabel(kind) + ' no Supabase: ' + msg, 'error'); return false; });
@@ -499,9 +565,14 @@
   }
   function sbLoad() {
     if (!sbReady()) { sb.checked = false; renderView(); return Promise.resolve(false); }
+    /* Administrador parcial: nenhuma chamada /rest/v1 (nem leitura pública). */
+    if (currentRole() === 'admin') {
+      sb.checked = false; sb.ok = false; sb.error = ''; renderView();
+      return Promise.resolve(false);
+    }
     var before = sb.checked + ':' + sb.ok;
     function refreshStatus() { if (before !== sb.checked + ':' + sb.ok) renderView(); }
-    var withUsers = !!authToken();
+    var withUsers = canAccessDatabase();
     var requests = [sbRequest('products', 'GET', '?select=*')];
     if (withUsers) requests.unshift(sbRequest('users', 'GET', '?select=*'));
     return Promise.all(requests).then(function (res) {
@@ -526,8 +597,7 @@
     });
   }
   function sbPublishSeed() {
-    if (!sbReady()) { notify('Configure a URL e a chave pública antes.', 'error'); return; }
-    if (!authToken()) { notify('Entre como administrador para publicar dados.', 'error'); return; }
+    if (!canAccessDatabase()) { notify('Acesso exclusivo do proprietário para publicar dados.', 'error'); return; }
     sbRequest('products', 'POST', '?on_conflict=id', SEED.products.map(productToRow)).then(function () {
       sb.ok = true; sb.error = '';
       notify('Produtos iniciais publicados. As contas são criadas na autenticação do Supabase.');
@@ -535,7 +605,7 @@
     }).catch(function (e) { var msg = friendlyError(e); sb.ok = false; sb.error = msg; notify('Falha ao publicar: ' + msg, 'error'); });
   }
   function sbSelfTest() {
-    if (!sbReady()) { notify('Configure a URL e a chave pública antes.', 'error'); return; }
+    if (!canAccessDatabase()) { notify('Acesso exclusivo do proprietário para testar o banco.', 'error'); return; }
     var c = sbConfig();
     var stamp = Date.now().toString().slice(-7) + Math.floor(Math.random() * 90 + 10);
     var p = { id: 'test-prod-' + stamp, name: 'Produto Teste EDY-K', description: 'Registro temporário criado pelo teste', category: 'Kits', price: 10, stock: 1, image: 'assets/images/product-kit.jpg', active: true, featured: false };
@@ -566,16 +636,16 @@
       });
     }
     if (!authToken()) {
-      step('Sessão de administrador', false);
-      finish(false, 'Faça login com uma conta de administrador.');
+      step('Sessão do proprietário', false);
+      finish(false, 'Faça login com a conta do proprietário.');
       return;
     }
-    sbRequest('rpc/is_admin', 'POST', '', {}).then(function (admin) {
-      step('Permissão de administrador nas regras de acesso', admin === true);
-      if (admin !== true) throw new Error('A conta atual não tem permissão de administrador.');
+    sbRequest('rpc/is_owner', 'POST', '', {}).then(function (owner) {
+      step('Permissão de proprietário nas regras de acesso', owner === true);
+      if (owner !== true) throw new Error('A conta atual não tem permissão de proprietário.');
       return sbRequest('products', 'POST', '?on_conflict=id', productToRow(p));
     }).then(function () {
-      step('Inserir produto de teste (administrador)', true);
+      step('Inserir produto de teste (proprietário)', true);
       return sbRequest('users', 'GET', '?select=id&id=eq.' + encodeURIComponent((state.currentUser || {}).id || ''));
     }).then(function (r) {
       step('Consultar próprio perfil', Array.isArray(r) && r.length > 0);
@@ -656,7 +726,7 @@
    * 4. Regras de negócio
    * ========================================================== */
   function user() { return state.currentUser || null; }
-  function isAdmin() { return !!user() && user().role === 'admin'; }
+  /* isAdmin()/isOwner()/isTeam() estão definidos na seção de perfis. */
   function points(uidUser) {
     var id = uidUser || (user() && user().id);
     if (!id) return 0;
@@ -782,7 +852,7 @@
     if (reward) { reward.status = 'used'; reward.usedAt = iso(0); }
     items.forEach(function (i) {
       var p = state.products.find(function (x) { return x.id === i.productId; });
-      if (p) { p.stock = Math.max(0, p.stock - i.quantity); sbUpsert('products', p); }
+      if (p) { p.stock = Math.max(0, p.stock - i.quantity); if (canAccessDatabase()) sbUpsert('products', p); }
     });
     if (user() && state.loyaltyConfig.enabled) {
       var pts = productPoints(discounted);
@@ -1238,7 +1308,7 @@
   function viewAuth(adminHint) {
     var isReg = ui.authTab === 'register';
     var h = '<section class="container section"><div style="max-width:480px;margin:0 auto"><div class="card">' +
-      '<div class="center"><div class="row" style="justify-content:center">' + logo(52) + '</div><h2 class="mt-2">' + (adminHint ? 'Acesso ao Painel Admin' : (isReg ? 'Criar conta' : 'Bem-vindo de volta')) + '</h2><p class="muted small mt-1">' + (adminHint ? 'Entre com uma conta de administrador para continuar.' : 'Entre para agendar, acompanhar pedidos e acumular pontos.') + '</p></div>' +
+      '<div class="center"><div class="row" style="justify-content:center">' + logo(52) + '</div><h2 class="mt-2">' + (adminHint ? 'Acesso ao Painel Admin' : (isReg ? 'Criar conta' : 'Bem-vindo de volta')) + '</h2><p class="muted small mt-1">' + (adminHint ? 'Entre com uma conta da equipe (proprietário ou administrador) para continuar.' : 'Entre para agendar, acompanhar pedidos e acumular pontos.') + '</p></div>' +
       '<div class="segmented mt-3"><button class="' + (!isReg ? 'active' : '') + '" data-act="auth-tab" data-tab="login">Entrar</button><button class="' + (isReg ? 'active' : '') + '" data-act="auth-tab" data-tab="register">Cadastrar</button></div>';
     if (isReg) {
       h += '<form class="mt-3" data-form="register"><label class="field"><span>Nome completo</span><input name="name" required minlength="3" placeholder="Seu nome"></label><label class="field"><span>E-mail</span><input name="email" type="email" required placeholder="voce@email.com"></label><label class="field"><span>Telefone</span><input name="phone" required data-mask="phone" placeholder="(11) 99999-0000"></label><label class="field"><span>Senha</span><input name="password" type="password" required minlength="6" placeholder="Mínimo 6 caracteres"></label><button class="btn btn-primary btn-block btn-lg" type="submit">Criar conta</button></form>';
@@ -1246,7 +1316,7 @@
       h += '<form class="mt-3" data-form="login"><label class="field"><span>E-mail</span><input name="email" type="email" required placeholder="voce@email.com"></label><label class="field"><span>Senha</span><input name="password" type="password" required placeholder="Sua senha"></label><button class="btn btn-primary btn-block btn-lg" type="submit">Entrar</button></form>' +
         (sbReady()
           ? '<p class="small muted mt-3">Acesso gerenciado pela autenticação do Supabase. Use o e-mail e a senha cadastrados no Supabase.</p>'
-          : '<div class="divider"></div><div class="eyebrow center">Acesso rápido (demonstração)</div><div class="grid grid-2 mt-2"><button class="btn btn-sm" data-act="quick-login" data-email="cliente@edyk.com">Entrar como cliente</button><button class="btn btn-sm" data-act="quick-login" data-email="admin@edyk.com">Entrar como administrador</button></div>');
+          : '<div class="divider"></div><div class="eyebrow center">Acesso rápido (demonstração)</div><div class="grid grid-3 mt-2"><button class="btn btn-sm" data-act="quick-login" data-email="cliente@edyk.com">Entrar como cliente</button><button class="btn btn-sm" data-act="quick-login" data-email="admin@edyk.com">Entrar como administrador</button><button class="btn btn-sm" data-act="quick-login" data-email="trabalhojonatha@gmail.com">Entrar como proprietário</button></div>');
     }
     return h + '</div></div></section>';
   }
@@ -1258,7 +1328,7 @@
     users: { title: 'Usuários', key: 'users', prefix: 'user', fields: [
       { k: 'name', l: 'Nome', t: 'text' }, { k: 'email', l: 'E-mail', t: 'text' },
       { k: 'phone', l: 'Telefone', t: 'text' }, { k: 'password', l: 'Senha', t: 'text' },
-      { k: 'role', l: 'Perfil', t: 'select', opts: [{ v: 'client', l: 'Cliente' }, { v: 'admin', l: 'Administrador' }] }
+      { k: 'role', l: 'Perfil', t: 'select', opts: [{ v: 'client', l: 'Cliente' }, { v: 'admin', l: 'Administrador' }, { v: 'owner', l: 'Proprietário' }] }
     ] },
     services: { title: 'Serviços', key: 'services', prefix: 'srv', fields: [
       { k: 'name', l: 'Nome', t: 'text' }, { k: 'category', l: 'Categoria', t: 'select', opts: ['Cabelo', 'Barba', 'Combo', 'Acabamento'] },
@@ -1316,12 +1386,16 @@
         if (f.k === 'password') v = '••••••';
         return '<td>' + (Array.isArray(v) ? esc(v.join(',')) : esc(v)) + '</td>';
       }).join('');
+      var roleLabel = item.role === 'owner' ? 'Proprietário' : item.role === 'admin' ? 'Administrador' : 'Cliente';
       var status = isUsers
-        ? '<span class="badge ' + (item.role === 'admin' ? 'gold' : '') + '">' + (item.role === 'admin' ? 'Administrador' : 'Cliente') + '</span>'
+        ? '<span class="badge ' + (item.role === 'owner' || item.role === 'admin' ? 'gold' : '') + '">' + esc(roleLabel) + '</span>'
         : statusBadge(item.active ? 'active' : 'inactive');
       return '<tr>' + cells + '<td>' + status + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="admin-edit" data-kind="' + kind + '" data-id="' + esc(item.id) + '">' + ic('edit', 13) + '</button><button class="btn btn-sm btn-danger" data-act="admin-delete" data-kind="' + kind + '" data-id="' + esc(item.id) + '">' + ic('trash', 13) + '</button></div></td></tr>';
     }).join('');
-    return '<div class="row-between"><div><div class="eyebrow">' + (isUsers ? 'Banco de dados' : 'Conteúdo') + '</div><h2>' + cfg.title + '</h2></div><button class="btn btn-primary" data-act="admin-new" data-kind="' + kind + '">' + ic('plus', 15) + ' Novo</button></div>' +
+    var createBtn = canCreateItems()
+      ? '<button class="btn btn-primary" data-act="admin-new" data-kind="' + kind + '">' + ic('plus', 15) + ' Novo</button>'
+      : '<span class="small muted">Consultar, editar e excluir · criação restrita ao proprietário</span>';
+    return '<div class="row-between wrap"><div><div class="eyebrow">' + (isUsers ? 'Banco de dados' : 'Conteúdo') + '</div><h2>' + cfg.title + '</h2></div>' + createBtn + '</div>' +
       '<div class="panel table-wrap mt-3"><table><thead><tr>' + heads + '<th>' + (isUsers ? 'Perfil' : 'Status') + '</th><th>Ações</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="center muted">Nenhum item cadastrado.</td></tr>') + '</tbody></table></div>' + adminFormHTML();
   }
 
@@ -1418,7 +1492,7 @@
       : sb.ok ? 'Conectado' : 'Erro de conexão');
     var badge = !sbReady() ? 'warn' : (sb.checked && sb.ok ? 'ok' : (sb.checked ? 'bad' : 'warn'));
     return '<div><div class="eyebrow">Banco de dados</div><h2>Supabase</h2>' +
-      '<p class="muted small mt-2">Login e cadastro usam a autenticação do Supabase. Perfis e produtos são protegidos por regras de acesso por linha: visitantes veem apenas produtos ativos e somente um administrador conectado pode gravar. Os demais dados (agendamentos, pedidos, pontos etc.) permanecem locais.</p>' +
+      '<p class="muted small mt-2">Área exclusiva do proprietário. Login e cadastro usam a autenticação do Supabase. Perfis e produtos são protegidos por regras de acesso por linha: visitantes veem apenas produtos ativos e somente o proprietário conectado pode gravar no banco. O administrador parcial cuida do conteúdo local e não acessa estas tabelas. Os demais dados (agendamentos, pedidos, pontos etc.) permanecem locais.</p>' +
       '<div class="card mt-3"><div class="row-between wrap"><div><div class="eyebrow">Status</div><h3 class="mt-1">' + esc(status) + '</h3></div><span class="badge ' + badge + '">' + esc(partial ? 'Incompleto' : sbReady() ? (sb.checked ? (sb.ok ? 'Conectado' : 'Falhou') : 'Configurado') : 'Desconectado') + '</span></div>' +
       (sb.error ? '<p class="small mt-2" style="color:var(--danger);word-break:break-all">' + esc(sb.error) + '</p>' : '') + '</div>' +
       '<form class="card mt-3" data-form="supabase-config"><h3>Conexão</h3><div class="form-grid mt-3">' +
@@ -1432,12 +1506,17 @@
       (test ? '<div class="card mt-3"><div class="row-between"><h3>Resultado do teste</h3><span class="badge ' + (test.running ? 'warn' : test.ok ? 'ok' : 'bad') + '">' + (test.running ? 'Em andamento' : test.ok ? 'Passou' : 'Falhou') + '</span></div><div class="mt-3">' +
         test.steps.map(function (s) { return '<div class="row-between small" style="padding:8px 0;border-bottom:1px solid var(--border)"><span>' + esc(s.text) + '</span><span style="color:' + (s.ok ? 'var(--gold)' : 'var(--danger)') + '">' + (s.ok ? 'Passou' : 'Falhou') + '</span></div>'; }).join('') +
         '</div></div>' : '') +
-      '<p class="muted small mt-3">Execute <code>supabase.sql</code> no editor de SQL, crie os usuários na autenticação do Supabase e marque o administrador conforme a documentação do projeto. O teste valida a permissão de administrador, cria/consulta/exclui um produto temporário e confirma que um visitante anônimo vê apenas produtos ativos. No terminal, use <code>node test-supabase.mjs</code> com as credenciais do administrador.</p></div>';
+      '<p class="muted small mt-3">Execute <code>supabase.sql</code> no editor de SQL, crie os usuários na autenticação do Supabase e defina os papéis em <code>raw_app_meta_data</code> conforme a documentação. O teste valida a permissão do proprietário, cria/consulta/exclui um produto temporário e confirma que um visitante anônimo vê apenas produtos ativos. No terminal, use <code>node test-supabase.mjs</code> com as credenciais do proprietário e do administrador parcial.</p></div>';
   }
 
   function viewAdmin() {
-    if (!isAdmin()) return viewAuth(true);
-    var tabs = [['dashboard', 'Resumo'], ['agenda', 'Agenda'], ['orders', 'Pedidos'], ['users', 'Usuários'], ['services', 'Serviços'], ['products', 'Produtos'], ['barbers', 'Barbeiros'], ['rewards', 'Recompensas'], ['reviews', 'Avaliações'], ['loyalty', 'Fidelidade'], ['supabase', 'Supabase'], ['settings', 'Configurações']];
+    if (!isTeam()) return viewAuth(true);
+    var restricted = ['users', 'supabase', 'settings'];
+    if (!isOwner() && restricted.indexOf(ui.adminTab) >= 0) ui.adminTab = 'dashboard';
+    var tabs = [['dashboard', 'Resumo'], ['agenda', 'Agenda'], ['orders', 'Pedidos'], ['services', 'Serviços'], ['products', 'Produtos'], ['barbers', 'Barbeiros'], ['rewards', 'Recompensas'], ['reviews', 'Avaliações'], ['loyalty', 'Fidelidade']];
+    if (isOwner()) tabs.push(['users', 'Usuários']);
+    if (isOwner()) tabs.push(['supabase', 'Supabase']);
+    if (isOwner()) tabs.push(['settings', 'Configurações']);
     var body;
     switch (ui.adminTab) {
       case 'agenda': body = adminAgenda(); break;
@@ -1579,20 +1658,27 @@
       case 'auth-tab': ui.authTab = el.getAttribute('data-tab'); renderView(); break;
       case 'quick-login': {
         var emailQL = el.getAttribute('data-email');
-        login(emailQL, emailQL.indexOf('admin') === 0 ? 'admin123' : '123456').then(function (res) {
+        var passQL = emailQL.indexOf('trabalhojonatha') === 0 ? 'owner123' : emailQL.indexOf('admin') === 0 ? 'admin123' : '123456';
+        login(emailQL, passQL).then(function (res) {
           if (res.ok) nav(ui.view === 'admin' || location.hash.indexOf('admin') >= 0 ? 'admin' : 'home');
           else notify(res.error, 'error');
         });
         break;
       }
       case 'logout': logout().then(function () { nav('home'); }); break;
-      case 'admin-tab':
-        if (!isAdmin()) break;
-        ui.adminTab = el.getAttribute('data-tab');
+      case 'admin-tab': {
+        if (!isTeam()) break;
+        var tab = el.getAttribute('data-tab');
+        if (['users', 'supabase', 'settings'].indexOf(tab) >= 0 && !isOwner()) {
+          notify('Área exclusiva do proprietário.', 'error');
+          break;
+        }
+        ui.adminTab = tab;
         renderView();
         break;
+      }
       case 'admin-new': {
-        if (!isAdmin()) break;
+        if (!canCreateItems()) { notify('Somente o proprietário pode criar itens.', 'error'); break; }
         var kindNew = el.getAttribute('data-kind');
         var hasActive = CRUD[kindNew].fields.some(function (f) { return f.k === 'active'; });
         ui.adminForm = { kind: kindNew, id: null, values: hasActive ? { active: true } : {} };
@@ -1600,8 +1686,9 @@
         break;
       }
       case 'admin-edit': {
-        if (!isAdmin()) break;
+        if (!isTeam()) break;
         var kind = el.getAttribute('data-kind');
+        if (kind === 'users' && !isOwner()) { notify('Usuários são gerenciados apenas pelo proprietário.', 'error'); break; }
         ui.adminForm = { kind: kind, id: id, values: clone(state[CRUD[kind].key].find(function (x) { return x.id === id; }) || {}) };
         if (kind === 'users') ui.adminForm.values.password = '';
         renderView();
@@ -1609,8 +1696,9 @@
       }
       case 'admin-form-close': ui.adminForm = null; renderView(); break;
       case 'admin-delete': {
-        if (!isAdmin()) break;
+        if (!isTeam()) break;
         var k2 = el.getAttribute('data-kind');
+        if (k2 === 'users' && !isOwner()) { notify('Usuários são gerenciados apenas pelo proprietário.', 'error'); break; }
         if (k2 === 'users' && state.currentUser && state.currentUser.id === id) {
           notify('Não é possível excluir o usuário que está logado.', 'error');
           break;
@@ -1637,33 +1725,34 @@
           persist(); render(); notify('Avaliação removida.', 'info');
         }
         break;
-      case 'review-reply-open': ui.reviewReplyFor = id; ui.reviewEditFor = null; renderView(); break;
+      case 'review-reply-open': if (!isTeam()) break; ui.reviewReplyFor = id; ui.reviewEditFor = null; renderView(); break;
       case 'review-reply-cancel': ui.reviewReplyFor = null; renderView(); break;
-      case 'review-edit-open': ui.reviewEditFor = id; ui.reviewReplyFor = null; renderView(); break;
+      case 'review-edit-open': if (!isTeam()) break; ui.reviewEditFor = id; ui.reviewReplyFor = null; renderView(); break;
       case 'review-edit-cancel': ui.reviewEditFor = null; renderView(); break;
       case 'reply-edit-open':
+        if (!isTeam()) break;
         ui.replyEdit = { reviewId: el.getAttribute('data-review'), replyId: id };
         renderView();
         break;
       case 'reply-edit-cancel': ui.replyEdit = null; renderView(); break;
       case 'reply-delete': deleteReply(el.getAttribute('data-review'), id); break;
       case 'admin-reset':
-        if (!isAdmin()) break;
+        if (!isOwner()) { notify('Ação exclusiva do proprietário.', 'error'); break; }
         if (window.confirm('Restaurar todos os dados de demonstração?')) resetDemo();
         break;
       case 'sb-connect':
-        if (!isAdmin()) break;
+        if (!isOwner()) { notify('Acesso exclusivo do proprietário.', 'error'); break; }
         sbLoad().then(function (ok) {
           notify(ok ? 'Conexão com o Supabase OK.' : 'Falha ao conectar: ' + (sb.error || 'verifique URL, chave e tabelas.'), ok ? 'success' : 'error');
           renderView();
         });
         break;
       case 'sb-publish':
-        if (!isAdmin()) break;
+        if (!isOwner()) { notify('Acesso exclusivo do proprietário.', 'error'); break; }
         sbPublishSeed();
         break;
       case 'sb-test':
-        if (!isAdmin()) break;
+        if (!isOwner()) { notify('Acesso exclusivo do proprietário.', 'error'); break; }
         sbSelfTest();
         break;
       case 'admin-exit': nav('home'); break;
@@ -1680,7 +1769,7 @@
       case 'login':
         login(fd.get('email'), fd.get('password')).then(function (res) {
           if (!res.ok) notify(res.error, 'error');
-          else nav(user() && user().role === 'admin' && location.hash.indexOf('admin') >= 0 ? 'admin' : 'home');
+          else nav(isTeam() && location.hash.indexOf('admin') >= 0 ? 'admin' : 'home');
         });
         break;
       case 'register':
@@ -1694,10 +1783,12 @@
       case 'review-edit': saveReviewEdit(f.getAttribute('data-id'), fd.get('comment')); break;
       case 'reply-edit': saveReplyEdit(f.getAttribute('data-review'), f.getAttribute('data-id'), fd.get('comment')); break;
       case 'checkout': createOrder(fd); break;
-      case 'admin-form':
-        if (!isAdmin() || !ui.adminForm) return;
+      case 'admin-form': {
+        if (!isTeam() || !ui.adminForm) return;
         cfg = CRUD[ui.adminForm.kind];
         var syncedKind = ui.adminForm.kind;
+        if (syncedKind === 'users' && !isOwner()) { notify('Usuários são gerenciados apenas pelo proprietário.', 'error'); return; }
+        if (!ui.adminForm.id && !isOwner()) { notify('Somente o proprietário pode criar itens.', 'error'); return; }
         obj = {};
         cfg.fields.forEach(function (field) {
           if (field.t === 'check') obj[field.k] = fd.has(field.k);
@@ -1736,8 +1827,9 @@
         else if (syncedKind === 'users' && sbReady()) notify('Perfil local atualizado. Dados de acesso ficam na autenticação do Supabase.', 'info');
         ui.adminForm = null; persist(); render();
         break;
+      }
       case 'supabase-config': {
-        if (!isAdmin()) return;
+        if (!isOwner()) { notify('Acesso exclusivo do proprietário.', 'error'); return; }
         var cfgUrl = String(fd.get('url') || '').trim().replace(/\/+$/, '');
         var cfgKey = String(fd.get('anonKey') || '').trim();
         try { localStorage.setItem(SB_CONFIG_KEY, JSON.stringify({ url: cfgUrl, anonKey: cfgKey })); } catch (e) { /* ignore */ }
@@ -1751,7 +1843,7 @@
         break;
       }
       case 'settings': {
-        if (!isAdmin()) return;
+        if (!isOwner()) { notify('Ação exclusiva do proprietário.', 'error'); return; }
         var s = state.settings;
         ['shopName', 'tagline', 'phone', 'whatsappUrl', 'instagramHandle', 'address', 'neighborhood', 'customLogoUrl', 'topNoticeText'].forEach(function (k) { s[k] = String(fd.get(k) || '').trim(); });
         s.deliveryFee = Number(fd.get('deliveryFee') || 0);
@@ -1766,7 +1858,7 @@
         break;
       }
       case 'loyalty': {
-        if (!isAdmin()) return;
+        if (!isTeam()) return;
         var c = state.loyaltyConfig;
         c.enabled = fd.has('enabled');
         ['pointsPerRealService', 'bookingBonusPoints', 'pointsPerRealProduct', 'productBonusPoints'].forEach(function (k) { c[k] = Number(fd.get(k) || 0); });
@@ -1788,8 +1880,8 @@
     var t = e.target, a = t.getAttribute && t.getAttribute('data-act');
     if (a === 'admin-date') { if (isAdmin()) { ui.adminDate = t.value; renderView(); } }
     else if (a === 'admin-status') { if (isAdmin()) setAppointmentStatus(t.getAttribute('data-id'), t.value); }
-    else if (a === 'admin-order-payment') setOrderPayment(t.getAttribute('data-id'), t.value);
-    else if (a === 'admin-order-status') setOrderStatus(t.getAttribute('data-id'), t.value);
+    else if (a === 'admin-order-payment') { if (isTeam()) setOrderPayment(t.getAttribute('data-id'), t.value); }
+    else if (a === 'admin-order-status') { if (isTeam()) setOrderStatus(t.getAttribute('data-id'), t.value); }
     else if (t.name === 'rewardId' && ui.view === 'booking') ui.booking.rewardId = t.value;
   });
 

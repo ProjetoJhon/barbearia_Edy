@@ -26,6 +26,7 @@
 - [Funcionalidades](#funcionalidades)
 - [Guia rápido](#guia-rápido)
 - [Contas de demonstração](#contas-de-demonstração)
+- [Perfis de acesso](#perfis-de-acesso)
 - [Arquitetura de dados](#arquitetura-de-dados)
 - [Integração com Supabase](#integração-com-supabase)
 - [Testes](#testes)
@@ -84,10 +85,11 @@ Não há `package.json`, `node_modules`, transpilação ou build. Usuários e pr
 - Dashboard com indicadores.
 - Gestão da agenda, status de agendamentos e marcação de pagamento recebido.
 - Gestão de pedidos: status de entrega e pagamento pago/pendente.
-- CRUD de usuários, serviços, produtos, barbeiros e recompensas, com sincronização remota dos produtos.
+- Consultar, editar e excluir serviços, produtos, barbeiros e recompensas. Criar itens é privilégio do proprietário.
+- CRUD de usuários e abas **Supabase** e **Configurações** exclusivas do proprietário.
+- Sincronização remota de produtos apenas com o proprietário autenticado; o administrador parcial trabalha no conteúdo local.
 - Avaliações e comentários: responder, editar, ocultar/aprovar e excluir avaliações; editar e excluir respostas. As respostas aparecem na página inicial.
-- Configuração de fidelidade e CMS geral da loja.
-- Aba **Supabase** com status, configuração, publicação de dados iniciais e teste de insert/exclusão.
+- Configuração de fidelidade (edição pela equipe) e CMS geral da loja (somente proprietário).
 
 ### Infraestrutura
 
@@ -134,11 +136,31 @@ Esses valores já estão em `vercel.json`. Não é preciso `npm install` nem var
 
 | Perfil | E-mail | Senha sugerida |
 | --- | --- | --- |
-| Administrador | `admin@edyk.com` | `admin123` |
+| Proprietário | `trabalhojonatha@gmail.com` | `owner123` |
+| Administrador parcial | `admin@edyk.com` | `admin123` |
 | Cliente | `cliente@edyk.com` | `123456` |
 
 - **Sem Supabase configurado:** são contas locais, com botões de acesso rápido na tela de login.
-- **Com Supabase configurado:** crie esses e-mails em **Authentication → Users**, use as senhas escolhidas e promova o admin conforme o passo 2 da integração. Os botões de acesso rápido desaparecem; o login passa a ser feito pelo Supabase Auth.
+- **Com Supabase configurado:** crie esses e-mails em **Authentication → Users**, use as senhas escolhidas e defina os papéis em `raw_app_meta_data` conforme o passo 2 da integração. Os botões de acesso rápido desaparecem; o login passa a ser feito pelo Supabase Auth.
+
+> Troque as senhas sugeridas antes de usar em produção — elas aparecem nesta documentação.
+
+## Perfis de acesso
+
+| Perfil | Painel | Criar itens | Usuários / Supabase / Configurações | Banco de dados (Supabase) |
+| --- | --- | --- | --- | --- |
+| **Proprietário** (`owner`) | Sim | Sim | Sim | Acesso total (`users` e `products`) |
+| **Administrador** (`admin`) | Sim | Não | Não | **Nenhum acesso** — nenhuma chamada REST de banco |
+| **Cliente** (`client`) | Não | Não | Não | Só o próprio perfil via RLS |
+
+O nível vem sempre do JWT assinado pelo Supabase (`app_metadata.role`). O app decodifica essa claim **apenas para mostrar/esconder a interface**; quem autoriza de verdade é o RLS. Mexer em `localStorage`, em `user_metadata` ou na tabela `users` não concede privilégios.
+
+O administrador parcial pode consultar, editar e excluir conteúdo do painel (agenda, pedidos, avaliações, serviços, produtos, barbeiros e recompensas), mas:
+
+- não vê as abas **Usuários**, **Supabase** nem **Configurações**;
+- não vê botão **Novo** (criação é exclusiva do proprietário);
+- não dispara `sbRequest()` nem carrega/perfila usuários e produtos remotamente;
+- alterações de produto ficam apenas no navegador até o proprietário sincronizar.
 
 ## Arquitetura de dados
 
@@ -171,26 +193,35 @@ A integração usa **Supabase Auth + REST/PostgREST direto no navegador**, sem S
 
 > O script **recria `public.users`**. As tabelas atuais estão vazias, mas exporte dados se houver informações importantes.
 
-O SQL cria perfis ligados a `auth.users`, remove a coluna de senha, habilita RLS, aplica `GRANT`s mínimos e cria o helper `public.is_admin()`, que lê o papel do **JWT assinado** — não do `localStorage` e nem de `user_metadata` (campo que qualquer visitante pode definir no cadastro).
+O SQL cria perfis ligados a `auth.users`, remove a coluna de senha, habilita RLS, aplica `GRANT`s mínimos e cria os helpers `public.current_role()`, `public.is_owner()`, `public.is_admin()` e `public.my_role()`. Todos leem o papel do **JWT assinado** — nunca `localStorage`, tabela `users` ou `user_metadata` (campo que qualquer visitante pode definir no cadastro). Por compatibilidade, `is_admin()` é hoje sinônimo de `is_owner()`: o administrador parcial retorna `false`.
 
 ### 2. Crie os usuários no Supabase Auth
 
-Em **Authentication → Users → Add user**, crie pelo menos:
+Em **Authentication → Users → Add user**, crie:
 
-- `admin@edyk.com` com a senha desejada;
-- `cliente@edyk.com` com a senha desejada.
+- `trabalhojonatha@gmail.com` com a senha do proprietário;
+- `admin@edyk.com` com a senha do administrador parcial;
+- `cliente@edyk.com` com a senha de cliente (opcional, para testes).
 
-Depois, ainda no SQL Editor, promova o administrador (o SQL de exemplo também está no final de `supabase.sql`):
+Depois, ainda no SQL Editor, defina os papéis (o SQL de exemplo também está no final de `supabase.sql`):
 
 ```sql
+-- Proprietário: acesso total, inclusive banco
 update auth.users
-set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"owner"}'::jsonb,
+    raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) - 'role'
+where email = 'trabalhojonatha@gmail.com';
+
+-- Administrador parcial: painel local, sem acesso ao banco
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb,
+    raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) - 'role'
 where email = 'admin@edyk.com';
 ```
 
-> **Importante:** use `raw_app_meta_data`, nunca `raw_user_meta_data`. O `user_metadata` é enviado pelo próprio cliente no cadastro; usá-lo como fonte de autorização permitiria que qualquer pessoa se registrasse com `{"role":"admin"}` e obtivesse acesso ao painel. Para revogar: `update auth.users set raw_app_meta_data = raw_app_meta_data - 'role' where email = 'admin@edyk.com';`
+> **Importante:** use `raw_app_meta_data`, nunca `raw_user_meta_data`. O `user_metadata` é enviado pelo próprio cliente no cadastro; usá-lo como fonte de autorização permitiria que qualquer pessoa se registrasse com `{"role":"admin"}` e obtivesse acesso ao painel. Para revogar um papel: `update auth.users set raw_app_meta_data = raw_app_meta_data - 'role' where email = 'admin@edyk.com';`
 
-Faça **logout/login** no app para o JWT receber a nova claim. O perfil em `public.users` é criado automaticamente no primeiro login (sempre como `client`; o nível de admin vem somente do `app_metadata`).
+Faça **logout/login** no app para o JWT receber a nova claim. No primeiro login, o proprietário tem o perfil gravado como `owner` e o cliente como `client`; o administrador parcial **não** cria perfil remoto, justamente porque não acessa o banco. Se a conta `admin@edyk.com` havia sido promovida antigamente via `user_metadata`, remova essa chave (os SQL acima já fazem isso).
 
 ### 3. Configure as credenciais
 
@@ -205,7 +236,7 @@ window.EDYK_SUPABASE = {
 
 Também é possível configurar pelo app, sem redeploy:
 
-**PAINEL ADMIN → Supabase → preencher URL/chave → SALVAR E CONECTAR**
+**PAINEL ADMIN (proprietário) → Supabase → preencher URL/chave → SALVAR E CONECTAR**
 
 Prioridade de configuração:
 
@@ -216,37 +247,38 @@ Salvar o painel com campos vazios limpa a configuração anterior e volta a usar
 
 ### 4. O que o RLS permite
 
-| Operação | Visitante (anon) | Cliente autenticado | Admin autenticado |
-| --- | --- | --- | --- |
-| Ler produtos ativos | ✅ | ✅ | ✅ |
-| Ler produtos inativos | ❌ | ❌ | ✅ |
-| Criar/editar/excluir produtos | ❌ | ❌ | ✅ |
-| Ler próprio perfil | ❌ | ✅ | ✅ |
-| Ler todos os perfis | ❌ | ❌ | ✅ |
-| Criar próprio perfil | ❌ | ✅ (sem poder virar admin) | ✅ |
+| Operação | Visitante (anon) | Cliente | Admin parcial | Proprietário |
+| --- | --- | --- | --- | --- |
+| Ler produtos ativos | ✅ | ✅ | ❌ | ✅ |
+| Ler produtos inativos | ❌ | ❌ | ❌ | ✅ |
+| Criar/editar/excluir produtos no banco | ❌ | ❌ | ❌ | ✅ |
+| Ler próprio perfil | ❌ | ✅ | ❌ | ✅ |
+| Ler todos os perfis | ❌ | ❌ | ❌ | ✅ |
+| Criar próprio perfil | ❌ | ✅ (sempre `client`) | ❌ | ✅ (como `owner`) |
+| `rpc/is_owner` / `rpc/is_admin` | `false` | `false` | `false` | `true` |
 
 ### 5. Sincronização automática
 
 Com a conexão ativa, o app:
 
 - autentica login/cadastro pelo Supabase Auth;
-- cria o perfil do usuário no primeiro login;
-- carrega produtos e, quando há sessão, os perfis autorizados, mesclando pelo `id`;
-- grava, edita e exclui produtos no CRUD admin somente com sessão admin;
-- atualiza o estoque remoto após cada pedido;
+- cria o perfil remoto apenas para proprietário e clientes;
+- carrega produtos e perfis autorizados, mesclando pelo `id` — exceto no perfil administrador parcial, que não faz chamadas ao banco;
+- grava, edita e exclui produtos no CRUD somente com sessão do proprietário;
+- atualiza o estoque remoto após cada pedido somente quando o proprietário está conectado;
 - mantém agendamentos, pedidos, pontos e carrinho no `localStorage`.
 
-Contas de acesso são gerenciadas no Supabase Auth. O painel admin não cria nem apaga usuários do Auth; alterações locais de perfil são apenas cosméticas e não alteram permissões.
+Contas de acesso são gerenciadas no Supabase Auth. O painel não cria nem apaga usuários do Auth; alterações locais de perfil são apenas cosméticas e não alteram permissões.
 
 ## Testes
 
-### Pelo painel (recomendado)
+### Pelo painel (somente proprietário)
 
-Entre como **admin do Supabase Auth** e vá em **PAINEL ADMIN → Supabase → TESTAR INSERT/EXCLUSÃO**.
+Entre como **proprietário** (`trabalhojonatha@gmail.com`) e vá em **PAINEL ADMIN → Supabase → TESTAR INSERÇÃO/EXCLUSÃO**. A aba não aparece para o administrador parcial.
 
 O teste valida:
 
-1. permissão de administrador via RLS;
+1. permissão de proprietário via `rpc/is_owner`;
 2. inserção de produto temporário;
 3. leitura do próprio perfil;
 4. leitura pública do produto ativo;
@@ -256,8 +288,12 @@ Resultado esperado: **PASSOU (5/5)**.
 
 ### Pelo terminal
 
+O script valida o proprietário (acesso total), o administrador parcial (acesso negado) e o visitante anônimo.
+
 ```bash
 # macOS/Linux
+SUPABASE_OWNER_EMAIL=trabalhojonatha@gmail.com \
+SUPABASE_OWNER_PASSWORD=SUA_SENHA \
 SUPABASE_ADMIN_EMAIL=admin@edyk.com \
 SUPABASE_ADMIN_PASSWORD=SUA_SENHA \
 node test-supabase.mjs
@@ -265,6 +301,8 @@ node test-supabase.mjs
 
 ```powershell
 # Windows PowerShell
+$env:SUPABASE_OWNER_EMAIL = "trabalhojonatha@gmail.com"
+$env:SUPABASE_OWNER_PASSWORD = "SUA_SENHA"
 $env:SUPABASE_ADMIN_EMAIL = "admin@edyk.com"
 $env:SUPABASE_ADMIN_PASSWORD = "SUA_SENHA"
 node test-supabase.mjs
@@ -272,31 +310,43 @@ node test-supabase.mjs
 
 `SUPABASE_URL` e `SUPABASE_ANON_KEY` são opcionais: se não existirem, o script lê `config.js`.
 
-O teste também verifica que um visitante anônimo **não consegue** gravar produtos nem ler usuários. Resultado esperado:
+Resultado esperado (resumo):
 
 ```text
-OK   Login com Supabase Auth
-OK   Role admin aplicada no RLS
-OK   Admin insere produto
-OK   Admin consulta produto
-OK   Usuário lê apenas o próprio perfil
+OK   Login do proprietário
+OK   Proprietário reconhecido pelo RLS
+OK   Compatibilidade is_admin() = proprietário
+OK   Perfil atual via RPC
+OK   Proprietário insere produto
+OK   Proprietário consulta produto
+OK   Proprietário lê próprio perfil
 OK   Anônimo lê produto ativo
 OK   Anônimo NÃO grava produto
 OK   Anônimo NÃO lê usuários
-OK   Excluir produto de teste
+OK   Login do administrador parcial
+OK   Admin parcial NÃO é proprietário no RLS
+OK   Admin parcial NÃO lê produtos
+OK   Admin parcial NÃO grava produto
+OK   Admin parcial NÃO altera produto
+OK   Admin parcial NÃO lê usuários
+OK   Excluir produtos de teste
 
-Resultado: SUCESSO (9/9 etapas)
+Resultado: SUCESSO (17/17 etapas)
 ```
 
 ### Validação das permissões do painel
 
-Com a conta admin autenticada no Supabase Auth, foram validados no navegador:
+| Ação no painel | Proprietário | Administrador parcial |
+| --- | --- | --- |
+| Ver abas Usuários / Supabase / Configurações | ✅ | ❌ (ocultas) |
+| Criar serviços, produtos, barbeiros e recompensas | ✅ | ❌ (botão **Novo** oculto) |
+| Consultar, editar e excluir conteúdo local | ✅ | ✅ |
+| Editar configurações da loja e restaurar demo | ✅ | ❌ |
+| Testar/publicar no Supabase | ✅ | ❌ (nenhuma chamada REST) |
+| Responder avaliações e gerenciar pedidos/agenda | ✅ | ✅ |
+| Alterar papel pelo `localStorage` | ❌ | ❌ (JWT + RLS mandam) |
 
-- **Produtos:** criar, editar e excluir pelo CRUD, com confirmação da exclusão remota via REST/RLS.
-- **Pedidos e pagamentos:** marcar pagamento pago/pendente e alterar status de entrega; entregar um pedido pendente marca o pagamento como pago automaticamente.
-- **Agenda:** marcar agendamento como pago e confirmar o recebimento.
-- **Avaliações:** responder, editar resposta, excluir resposta, editar comentário, ocultar/aprovar e excluir avaliação; a resposta aparece na página inicial.
-- **Teste negativo:** deslogado, tentativas de alterar pedido, responder avaliação ou abrir formulário de CRUD são bloqueadas pelos guards de `isAdmin()`.
+Teste negativo adicional: deslogado, tentativas de alterar pedido, responder avaliação ou abrir formulário de CRUD continuam bloqueadas pelos guards de acesso.
 
 ## API local (Python)
 
@@ -330,8 +380,8 @@ No Vercel:
 ├── app-v2.js               # Estado, rotas, regras de negócio, Auth e integração Supabase
 ├── config.js               # URL e chave pública do Supabase
 ├── server.py               # Servidor estático + API JSON local
-├── supabase.sql            # Perfis, GRANTs mínimos, RLS e helper is_admin()
-├── test-supabase.mjs       # Teste de Auth, RLS e insert/consulta/delete via REST
+├── supabase.sql            # Perfis, GRANTs mínimos, RLS e helpers owner/admin
+├── test-supabase.mjs       # Teste de Auth, RLS e acesso negado ao admin parcial
 ├── vercel.json             # Configuração de deploy estático
 ├── manifest.webmanifest    # PWA
 ├── metadata.json           # Metadados do aplicativo
@@ -348,8 +398,9 @@ No Vercel:
 - A chave `anon`/`publishable` pode ficar no front-end **somente com RLS configurado**.
 - **Nunca** coloque a `service_role` em `config.js`, no painel ou em qualquer arquivo cliente.
 - Login/cadastro usam Supabase Auth; a tabela `public.users` não armazena senha.
-- RLS usa `auth.uid()` e o helper `public.is_admin()`, baseado em **`app_metadata` do JWT assinado**. Mudar o `role` no `localStorage`, na tabela ou no `user_metadata` não concede acesso administrativo.
-- Visitantes só leem produtos ativos; escrita remota é exclusiva de admins autenticados.
+- RLS usa `auth.uid()`, `public.current_role()`, `public.is_owner()` e `public.is_admin()` — todos baseados em **`app_metadata` do JWT assinado**. Mudar o `role` no `localStorage`, na tabela ou no `user_metadata` não concede privilégios.
+- Visitantes e clientes só leem produtos ativos; o administrador parcial não lê tabelas remotas; escrita remota é exclusiva do proprietário.
+- O front-end decodifica a claim `app_metadata.role` somente para esconder/mostrar controles. Não há confiança nessa decodificação para autorização: o RLS bloqueia qualquer chamada direta.
 - O token de sessão fica em `sessionStorage` (`edyk_auth_session`) e **não** é enviado para a API Python compartilhada; ele expira com a aba do navegador.
 - Em dispositivos compartilhados, use **Sair do painel**/logout ao terminar.
 - `server.py` escuta apenas em `127.0.0.1` por padrão. Para expor na rede (`--host 0.0.0.0`), defina `EDYK_API_TOKEN` e informe o mesmo valor em `config.js` (`localApiToken`) — o cabeçalho `X-EDYK-Token` passa a ser exigido em `/api/state`. O corpo da requisição é limitado a 2 MB.
@@ -363,12 +414,13 @@ Achados corrigidos nesta revisão:
 | Achado | Severidade | Correção |
 | --- | --- | --- |
 | `is_admin()` lia `user_metadata.role`, permitindo escalonamento via cadastro público com `{"role":"admin"}` | Crítica | Passou a ler somente `app_metadata.role`; promoção agora usa `raw_app_meta_data` |
-| `authProfile()` replicava `user_metadata.role` no perfil local | Média | Perfis criados no login sempre começam como `client` |
+| Não havia separação entre proprietário e administrador parcial | Alta | Perfis `owner` e `admin`; `admin` não acessa `users`/`products` no RLS e não dispara REST no app |
+| `authProfile()` replicava `user_metadata.role` no perfil local | Média | Perfis criados no login sempre começam como `client` (ou `owner`, pela claim) |
 | `/api/state` aceitava escrita sem token e o servidor escutava em `0.0.0.0` | Média | Bind padrão em loopback, token opcional `EDYK_API_TOKEN`, limite de 2 MB e validação do payload |
 | IDs e datas interpolados em atributos `data-*` sem escaping | Baixa | Aplicação de `esc()` em todos os atributos derivados de dados |
 | Expressão morta no `<option>` de “Marcar pago” da agenda | Baixa | Removida |
 
-Validação recomendada após aplicar o SQL: faça logout/login com a conta admin e rode `node test-supabase.mjs`. Como teste manual de regressão, cadastre um usuário com `data: {"role":"admin"}` pelo próprio Auth e confirme que `POST /rest/v1/rpc/is_admin` retorna `false`.
+Validação recomendada após aplicar o SQL: faça logout/login nas duas contas e rode `node test-supabase.mjs` com as duas senhas. Como teste manual de regressão, cadastre um usuário com `data: {"role":"admin"}` pelo próprio Auth e confirme que `POST /rest/v1/rpc/is_admin` retorna `false` (claim forjada em `user_metadata` não serve). Conectado como administrador parcial, confirme que nenhuma requisição aparece para `/rest/v1/*` no painel do navegador.
 
 ## Solução de problemas
 
@@ -378,9 +430,10 @@ Validação recomendada após aplicar o SQL: faça logout/login com a conta admi
 | `PGRST205` | Tabelas não criadas ou cache antigo | Execute `supabase.sql`; se persistir, rode `notify pgrst, 'reload schema';` |
 | `42501 permission denied` | RLS/GRANT não aplicado ou papel errado | Rode novamente `supabase.sql` e entre com a conta correta |
 | `401` no login com Supabase | Usuário não existe no Auth ou senha errada | Crie o usuário em **Authentication → Users** e tente novamente |
-| “A conta atual não tem role admin” | `raw_app_meta_data.role` não foi definido | Rode o SQL de promoção do admin e faça logout/login |
-| `new row violates row-level security policy` ao cadastrar | Perfil com `role` diferente do permitido | Cadastre pelo app; nunca envie `role: admin` no signup |
-| Produtos não aparecem no painel | Sessão sem token admin | Entre com a conta admin do Supabase Auth |
+| “Acesso exclusivo do proprietário” | Conta `admin@edyk.com` tentou usar banco/configurações | Entre como `trabalhojonatha@gmail.com` para essas áreas |
+| Painel Admin não aparece | `raw_app_meta_data.role` não é `owner`/`admin` | Rode o SQL de promoção e faça logout/login |
+| Produtos não aparecem no painel do administrador parcial | Perfil sem acesso ao banco (comportamento esperado) | Use o proprietário para sincronizar; o admin vê apenas dados locais |
+| `new row violates row-level security policy` ao cadastrar | Perfil com `role` diferente do permitido | Cadastre pelo app; nunca envie `role: admin`/`owner` no signup |
 | `404` no Vercel para `/api/state` | API Python não existe no deploy | Normal; o app usa `localStorage`/Supabase |
 | Status “Configuração incompleta” | URL ou chave vazia | Confira os campos em **Admin → Supabase** |
 | Login não persiste após reload | Sessão expirada/configuração alterada | Faça login novamente; o token é renovado automaticamente quando possível |
@@ -389,8 +442,12 @@ Validação recomendada após aplicar o SQL: faça logout/login com a conta admi
 
 ### 2026-11-21
 
-- **Correção crítica de segurança (SAST):** `public.is_admin()` agora lê apenas `app_metadata.role`, fechando o escalonamento de privilégio via `user_metadata` no cadastro.
-- Perfis criados no primeiro login passam a ser sempre `client`; o nível admin vem somente do JWT assinado.
+- **Distinção de usuários:** `trabalhojonatha@gmail.com` é proprietário (`owner`, acesso total) e `admin@edyk.com` é administrador parcial (`admin`, sem acesso ao banco).
+- Administrador parcial não vê abas de Usuários/Supabase/Configurações, não cria itens e não faz chamadas `/rest/v1/*`; alterações ficam locais.
+- RLS reforçado com `current_role()`, `is_owner()` e `is_admin()` (sinônimo de `is_owner()`); `admin` é negado até na leitura de `products`/`users`.
+- Testes reescritos para validar proprietário, administrador negado e visitante anônimo (17 etapas).
+- **Correção crítica de segurança (SAST):** as funções de papel agora leem apenas `app_metadata.role`, fechando o escalonamento de privilégio via `user_metadata` no cadastro.
+- Perfis criados no primeiro login passam a ser `client` ou `owner` conforme a claim do JWT.
 - `server.py` passa a escutar em `127.0.0.1`, aceita `EDYK_API_TOKEN`/`--host` e limita o corpo de `/api/state` a 2 MB.
 - Escaping aplicado a atributos `data-*` derivados de dados no front-end.
 
