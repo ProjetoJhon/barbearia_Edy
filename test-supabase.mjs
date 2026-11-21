@@ -7,7 +7,8 @@
  *
  * A URL e a anon key são lidas de config.js quando não passadas por ambiente.
  * Antes de rodar, execute supabase.sql no SQL Editor e crie o usuário admin
- * no Supabase Auth (com role admin no raw_user_meta_data).
+ * no Supabase Auth com role em raw_app_meta_data (NUNCA em user_metadata:
+ * qualquer visitante pode definir user_metadata no próprio cadastro).
  */
 import fs from 'node:fs';
 

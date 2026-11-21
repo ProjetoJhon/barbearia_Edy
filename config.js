@@ -16,5 +16,9 @@
  */
 window.EDYK_SUPABASE = {
   url: 'https://fmiyckfvfhnysqtaoemm.supabase.co',
-  anonKey: 'sb_publishable_PMjtwxK7XAw4k-RU39CWlA_BrrWGRQc'
+  anonKey: 'sb_publishable_PMjtwxK7XAw4k-RU39CWlA_BrrWGRQc',
+
+  /* Opcional: token da API local (server.py). Use apenas se o servidor foi
+   * iniciado com EDYK_API_TOKEN definido. Nunca é uma credencial do Supabase. */
+  localApiToken: ''
 };

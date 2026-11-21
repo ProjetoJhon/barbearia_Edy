@@ -171,7 +171,7 @@ A integração usa **Supabase Auth + REST/PostgREST direto no navegador**, sem S
 
 > O script **recria `public.users`**. As tabelas atuais estão vazias, mas exporte dados se houver informações importantes.
 
-O SQL cria perfis ligados a `auth.users`, remove a coluna de senha, habilita RLS, aplica `GRANT`s mínimos e cria o helper `public.is_admin()`, que lê o papel do **JWT assinado** — não do `localStorage`.
+O SQL cria perfis ligados a `auth.users`, remove a coluna de senha, habilita RLS, aplica `GRANT`s mínimos e cria o helper `public.is_admin()`, que lê o papel do **JWT assinado** — não do `localStorage` e nem de `user_metadata` (campo que qualquer visitante pode definir no cadastro).
 
 ### 2. Crie os usuários no Supabase Auth
 
@@ -184,11 +184,13 @@ Depois, ainda no SQL Editor, promova o administrador (o SQL de exemplo também e
 
 ```sql
 update auth.users
-set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
 where email = 'admin@edyk.com';
 ```
 
-Faça **logout/login** no app para o JWT receber a nova claim. O perfil em `public.users` é criado automaticamente no primeiro login.
+> **Importante:** use `raw_app_meta_data`, nunca `raw_user_meta_data`. O `user_metadata` é enviado pelo próprio cliente no cadastro; usá-lo como fonte de autorização permitiria que qualquer pessoa se registrasse com `{"role":"admin"}` e obtivesse acesso ao painel. Para revogar: `update auth.users set raw_app_meta_data = raw_app_meta_data - 'role' where email = 'admin@edyk.com';`
+
+Faça **logout/login** no app para o JWT receber a nova claim. O perfil em `public.users` é criado automaticamente no primeiro login (sempre como `client`; o nível de admin vem somente do `app_metadata`).
 
 ### 3. Configure as credenciais
 
@@ -346,12 +348,27 @@ No Vercel:
 - A chave `anon`/`publishable` pode ficar no front-end **somente com RLS configurado**.
 - **Nunca** coloque a `service_role` em `config.js`, no painel ou em qualquer arquivo cliente.
 - Login/cadastro usam Supabase Auth; a tabela `public.users` não armazena senha.
-- RLS usa `auth.uid()` e o helper `public.is_admin()`, baseado em claim do JWT. Mudar o `role` no `localStorage` ou na tabela não concede acesso administrativo.
+- RLS usa `auth.uid()` e o helper `public.is_admin()`, baseado em **`app_metadata` do JWT assinado**. Mudar o `role` no `localStorage`, na tabela ou no `user_metadata` não concede acesso administrativo.
 - Visitantes só leem produtos ativos; escrita remota é exclusiva de admins autenticados.
 - O token de sessão fica em `sessionStorage` (`edyk_auth_session`) e **não** é enviado para a API Python compartilhada; ele expira com a aba do navegador.
 - Em dispositivos compartilhados, use **Sair do painel**/logout ao terminar.
+- `server.py` escuta apenas em `127.0.0.1` por padrão. Para expor na rede (`--host 0.0.0.0`), defina `EDYK_API_TOKEN` e informe o mesmo valor em `config.js` (`localApiToken`) — o cabeçalho `X-EDYK-Token` passa a ser exigido em `/api/state`. O corpo da requisição é limitado a 2 MB.
 - Não exponha `data/store.json` em um servidor público: ele contém o estado local da aplicação.
 - Para produção, mantenha confirmação de e-mail ativada no Supabase Auth e considere mover agendamentos/pedidos para tabelas com RLS próprio.
+
+### Auditoria SAST (2026-11-21)
+
+Achados corrigidos nesta revisão:
+
+| Achado | Severidade | Correção |
+| --- | --- | --- |
+| `is_admin()` lia `user_metadata.role`, permitindo escalonamento via cadastro público com `{"role":"admin"}` | Crítica | Passou a ler somente `app_metadata.role`; promoção agora usa `raw_app_meta_data` |
+| `authProfile()` replicava `user_metadata.role` no perfil local | Média | Perfis criados no login sempre começam como `client` |
+| `/api/state` aceitava escrita sem token e o servidor escutava em `0.0.0.0` | Média | Bind padrão em loopback, token opcional `EDYK_API_TOKEN`, limite de 2 MB e validação do payload |
+| IDs e datas interpolados em atributos `data-*` sem escaping | Baixa | Aplicação de `esc()` em todos os atributos derivados de dados |
+| Expressão morta no `<option>` de “Marcar pago” da agenda | Baixa | Removida |
+
+Validação recomendada após aplicar o SQL: faça logout/login com a conta admin e rode `node test-supabase.mjs`. Como teste manual de regressão, cadastre um usuário com `data: {"role":"admin"}` pelo próprio Auth e confirme que `POST /rest/v1/rpc/is_admin` retorna `false`.
 
 ## Solução de problemas
 
@@ -361,7 +378,7 @@ No Vercel:
 | `PGRST205` | Tabelas não criadas ou cache antigo | Execute `supabase.sql`; se persistir, rode `notify pgrst, 'reload schema';` |
 | `42501 permission denied` | RLS/GRANT não aplicado ou papel errado | Rode novamente `supabase.sql` e entre com a conta correta |
 | `401` no login com Supabase | Usuário não existe no Auth ou senha errada | Crie o usuário em **Authentication → Users** e tente novamente |
-| “A conta atual não tem role admin” | `raw_user_meta_data.role` não foi definido | Rode o SQL de promoção do admin e faça logout/login |
+| “A conta atual não tem role admin” | `raw_app_meta_data.role` não foi definido | Rode o SQL de promoção do admin e faça logout/login |
 | `new row violates row-level security policy` ao cadastrar | Perfil com `role` diferente do permitido | Cadastre pelo app; nunca envie `role: admin` no signup |
 | Produtos não aparecem no painel | Sessão sem token admin | Entre com a conta admin do Supabase Auth |
 | `404` no Vercel para `/api/state` | API Python não existe no deploy | Normal; o app usa `localStorage`/Supabase |
@@ -369,6 +386,13 @@ No Vercel:
 | Login não persiste após reload | Sessão expirada/configuração alterada | Faça login novamente; o token é renovado automaticamente quando possível |
 
 ## Changelog
+
+### 2026-11-21
+
+- **Correção crítica de segurança (SAST):** `public.is_admin()` agora lê apenas `app_metadata.role`, fechando o escalonamento de privilégio via `user_metadata` no cadastro.
+- Perfis criados no primeiro login passam a ser sempre `client`; o nível admin vem somente do JWT assinado.
+- `server.py` passa a escutar em `127.0.0.1`, aceita `EDYK_API_TOKEN`/`--host` e limita o corpo de `/api/state` a 2 MB.
+- Escaping aplicado a atributos `data-*` derivados de dados no front-end.
 
 ### 2026-11-20
 

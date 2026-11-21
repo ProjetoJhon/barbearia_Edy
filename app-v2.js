@@ -264,12 +264,23 @@
      * (assim é possível limpar uma configuração antiga sem editar config.js). */
     var hasUrl = Object.prototype.hasOwnProperty.call(saved, 'url');
     var hasKey = Object.prototype.hasOwnProperty.call(saved, 'anonKey');
+    var rawUrl = String(hasUrl ? saved.url : (file.url || '')).trim().replace(/\/+$/, '');
+    /* Aceita apenas http(s): a URL é usada em fetch() junto com o token de
+     * sessão, então esquemas como javascript:/data: jamais devem passar. */
+    if (rawUrl && !/^https?:\/\//i.test(rawUrl)) rawUrl = '';
     return {
-      url: String(hasUrl ? saved.url : (file.url || '')).trim().replace(/\/+$/, ''),
+      url: rawUrl,
       anonKey: String(hasKey ? saved.anonKey : (file.anonKey || '')).trim()
     };
   }
   function sbReady() { var c = sbConfig(); return !!(c.url && c.anonKey); }
+
+  /* Cabeçalhos opcionais para a API local do server.py (EDYK_API_TOKEN). */
+  function localApiHeaders() {
+    var c = window.EDYK_SUPABASE || {};
+    var token = String(c.localApiToken || '').trim();
+    return token ? { 'X-EDYK-Token': token } : {};
+  }
 
   function friendlyError(e) {
     var raw = String((e && e.message) || e || '').trim();
@@ -368,7 +379,10 @@
         name: meta.name || String(session.user.email || '').split('@')[0],
         email: session.user.email || '',
         phone: meta.phone || '',
-        role: meta.role === 'admin' ? 'admin' : 'client',
+        /* Nunca confiar em user_metadata para autorização: qualquer visitante
+         * pode enviar {"role":"admin"} no cadastro. O nível real vem do
+         * app_metadata via public.is_admin() no RLS. */
+        role: 'client',
         created_at: new Date().toISOString()
       };
       return sbRequest('users', 'POST', '?on_conflict=id', row).then(function () { return row; });
@@ -582,7 +596,8 @@
       /* currentUser é sessão do navegador: não vai para o estado compartilhado. */
       var shared = {};
       Object.keys(SEED).forEach(function (k) { if (k !== 'currentUser') shared[k] = state[k]; });
-      fetch('api/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(shared) }).catch(function () {});
+      var headers = Object.assign({ 'Content-Type': 'application/json' }, localApiHeaders());
+      fetch('api/state', { method: 'POST', headers: headers, body: JSON.stringify(shared) }).catch(function () {});
     }, 600);
   }
 
@@ -596,6 +611,16 @@
   }
 
   function initRemote() {
+    /* Com Auth real ativo, credenciais do modo demo não devem ficar no
+     * localStorage nem ser reenviadas na persistência compartilhada. */
+    if (sbReady() && Array.isArray(state.users)) {
+      state.users = state.users.map(function (u) {
+        if (!u || !u.password) return u;
+        var copy = {};
+        Object.keys(u).forEach(function (k) { if (k !== 'password') copy[k] = u[k]; });
+        return copy;
+      });
+    }
     /* Supabase funciona em qualquer origem: file://, localhost ou Vercel. */
     return authBootstrap().then(function () {
       sbLoad();
@@ -603,7 +628,7 @@
       /* A API Python de persistência só existe em localhost. */
       if (!/^https?:$/.test(location.protocol)) return;
       if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
-      fetch('api/state', { cache: 'no-store' })
+      fetch('api/state', { cache: 'no-store', headers: localApiHeaders() })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
           apiAvailable = true;
@@ -1066,7 +1091,7 @@
         var price = p.promoPrice != null ? p.promoPrice : p.price, out = p.stock <= 0;
         return '<article class="card product-card"><div class="product-img"><img src="' + esc(p.image) + '" alt="' + esc(p.name) + '"></div><div class="product-body"><div><div class="small muted mb-1">' + esc(p.category) + ' · ' + (out ? '<span style="color:var(--danger)">Esgotado</span>' : p.stock + ' em estoque') + '</div><h3>' + esc(p.name) + '</h3></div>' +
           '<div class="row-between mt-3"><div>' + (p.promoPrice != null ? '<div class="price-old">' + money(p.price) + '</div>' : '') + '<div class="price mono">' + money(price) + '</div></div>' +
-          '<button class="btn btn-sm" ' + (out ? 'disabled' : '') + ' data-act="add-cart" data-id="' + p.id + '">' + (out ? 'Indisponível' : 'Adicionar') + '</button></div></div></article>';
+          '<button class="btn btn-sm" ' + (out ? 'disabled' : '') + ' data-act="add-cart" data-id="' + esc(p.id) + '">' + (out ? 'Indisponível' : 'Adicionar') + '</button></div></div></article>';
       }).join('') + '</div></section>';
 
     h += '<section class="section container"><div class="panel info-panel"><div class="panel-pad info-schedule">' +
@@ -1101,14 +1126,14 @@
 
     if (b.step === 1) {
       h += '<div class="grid grid-2">' + state.services.filter(function (s) { return s.active; }).map(function (s) {
-        return '<button class="option ' + (b.serviceId === s.id ? 'selected' : '') + '" data-act="book-service" data-id="' + s.id + '"><div class="row-between"><div class="small muted">' + esc(s.category) + ' · ' + s.durationMinutes + ' min</div><div class="mono gold">' + money(s.price) + '</div></div><h3>' + esc(s.name) + '</h3><p>' + esc(s.description) + '</p></button>';
+        return '<button class="option ' + (b.serviceId === s.id ? 'selected' : '') + '" data-act="book-service" data-id="' + esc(s.id) + '"><div class="row-between"><div class="small muted">' + esc(s.category) + ' · ' + s.durationMinutes + ' min</div><div class="mono gold">' + money(s.price) + '</div></div><h3>' + esc(s.name) + '</h3><p>' + esc(s.description) + '</p></button>';
       }).join('') + '</div><div class="row mt-4"><button class="btn btn-primary" data-act="book-next"' + (b.serviceId ? '' : ' disabled') + '>Continuar ' + ic('arrow', 15) + '</button></div>';
     }
 
     if (b.step === 2) {
       h += '<div class="grid grid-3"><button class="option ' + (b.barberId === 'any' ? 'selected' : '') + '" data-act="book-barber" data-id="any"><div class="barber-option"><div style="width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--bg-4);color:var(--gold)">' + ic('user', 24) + '</div><div><h3>Sem Preferência</h3><p>Mostramos todos os horários livres do elenco.</p></div></div></button>' +
         state.barbers.filter(function (x) { return x.active; }).map(function (x) {
-          return '<button class="option ' + (b.barberId === x.id ? 'selected' : '') + '" data-act="book-barber" data-id="' + x.id + '"><div class="barber-option"><img src="' + esc(x.photo) + '" alt=""><div><h3>' + esc(x.name) + '</h3><p>' + esc(x.specialty) + '<br>★ ' + barberStats(x.id, x.rating).average.toFixed(2) + '</p></div></div></button>';
+          return '<button class="option ' + (b.barberId === x.id ? 'selected' : '') + '" data-act="book-barber" data-id="' + esc(x.id) + '"><div class="barber-option"><img src="' + esc(x.photo) + '" alt=""><div><h3>' + esc(x.name) + '</h3><p>' + esc(x.specialty) + '<br>★ ' + barberStats(x.id, x.rating).average.toFixed(2) + '</p></div></div></button>';
         }).join('') + '</div><div class="row mt-4"><button class="btn" data-act="book-goto" data-step="1">Voltar</button><button class="btn btn-primary" data-act="book-next"' + (b.barberId ? '' : ' disabled') + '>Continuar ' + ic('arrow', 15) + '</button></div>';
     }
 
@@ -1116,11 +1141,11 @@
       var days = [];
       for (var i = 0; i < 21; i++) {
         var d = iso(i), count = availableTimes(d, b.barberId || 'any').length;
-        days.push('<button class="date-chip ' + (b.date === d ? 'active' : '') + '" data-act="book-date" data-date="' + d + '"' + (count ? '' : ' disabled') + '><span class="small">' + DAYS[dow(d)] + '</span><strong>' + esc(d.slice(8)) + '</strong><span class="small">' + (count ? count + ' horários' : '—') + '</span></button>');
+        days.push('<button class="date-chip ' + (b.date === d ? 'active' : '') + '" data-act="book-date" data-date="' + esc(d) + '"' + (count ? '' : ' disabled') + '><span class="small">' + DAYS[dow(d)] + '</span><strong>' + esc(d.slice(8)) + '</strong><span class="small">' + (count ? count + ' horários' : '—') + '</span></button>');
       }
       var times = b.date ? availableTimes(b.date, b.barberId || 'any') : [];
       h += '<div class="card"><div class="eyebrow">Escolha o dia</div><div class="date-strip mt-2">' + days.join('') + '</div><div class="divider"></div><div class="eyebrow">Horários disponíveis' + (b.date ? ' · ' + fmtDate(b.date) : '') + '</div>' +
-        (times.length ? '<div class="time-grid mt-2">' + times.map(function (t) { return '<button class="time-slot ' + (b.time === t ? 'active' : '') + '" data-act="book-time" data-time="' + t + '">' + t + '</button>'; }).join('') + '</div>' : '<p class="muted mt-2">' + (b.date ? 'Nenhum horário livre nesta data.' : 'Selecione uma data acima.') + '</p>') + '</div>' +
+        (times.length ? '<div class="time-grid mt-2">' + times.map(function (t) { return '<button class="time-slot ' + (b.time === t ? 'active' : '') + '" data-act="book-time" data-time="' + esc(t) + '">' + t + '</button>'; }).join('') + '</div>' : '<p class="muted mt-2">' + (b.date ? 'Nenhum horário livre nesta data.' : 'Selecione uma data acima.') + '</p>') + '</div>' +
         '<div class="row mt-4"><button class="btn" data-act="book-goto" data-step="2">Voltar</button><button class="btn btn-primary" data-act="book-next"' + (b.date && b.time ? '' : ' disabled') + '>Continuar ' + ic('arrow', 15) + '</button></div>';
     }
 
@@ -1134,7 +1159,7 @@
         '<label class="field"><span>Observações (opcional)</span><textarea name="notes" placeholder="Alguma preferência?"></textarea></label>' +
         '<h3 class="mt-2">Forma de Pagamento</h3><label class="field mt-2"><span>Método</span><select name="method"><option value="pix"' + (b.payment === 'pix' ? ' selected' : '') + '>Pix (pagamento online)</option><option value="credit_card"' + (b.payment === 'credit_card' ? ' selected' : '') + '>Cartão de crédito</option><option value="in_shop"' + (b.payment === 'in_shop' ? ' selected' : '') + '>Pagar na barbearia</option></select></label>' +
         '<label class="field"><span>Parcelas (cartão)</span><select name="installments"><option>1</option><option>2</option><option>3</option><option>4</option><option>6</option></select></label>' +
-        (coupons.length ? '<label class="field"><span>Cupom de desconto</span><select name="rewardId"><option value="">Nenhum cupom</option>' + coupons.map(function (r) { return '<option value="' + r.id + '" ' + (b.rewardId === r.id ? 'selected' : '') + '>' + esc(r.code) + ' — ' + esc(r.rewardTitle) + '</option>'; }).join('') + '</select></label>' : '') +
+        (coupons.length ? '<label class="field"><span>Cupom de desconto</span><select name="rewardId"><option value="">Nenhum cupom</option>' + coupons.map(function (r) { return '<option value="' + esc(r.id) + '" ' + (b.rewardId === r.id ? 'selected' : '') + '>' + esc(r.code) + ' — ' + esc(r.rewardTitle) + '</option>'; }).join('') + '</select></label>' : '') +
         '</div><aside class="card" style="align-self:start"><h2>Resumo da Reserva</h2><div class="mt-3"><div class="summary-line"><span>Serviço</span><strong>' + esc(srv.name) + '</strong></div><div class="summary-line"><span>Profissional</span><strong>' + esc(b.barberId && b.barberId !== 'any' ? (state.barbers.find(function (x) { return x.id === b.barberId; }) || {}).name : 'A definir') + '</strong></div>' +
         '<div class="summary-line"><span>Data</span><strong>' + fmtDate(b.date) + '</strong></div><div class="summary-line"><span>Horário</span><strong class="mono">' + esc(b.time) + '</strong></div><div class="summary-line"><span>Duração</span><strong>' + srv.durationMinutes + ' min</strong></div>' +
         (disc ? '<div class="summary-line"><span>Desconto</span><strong class="gold">- ' + money(disc) + '</strong></div>' : '') +
@@ -1154,7 +1179,7 @@
       '<div class="grid grid-4 mt-4">' + list.map(function (p) {
         var price = p.promoPrice != null ? p.promoPrice : p.price, out = p.stock <= 0;
         return '<article class="card product-card"><div class="product-img"><img src="' + esc(p.image) + '" alt="' + esc(p.name) + '"></div><div class="product-body"><div><div class="small muted mb-1">' + esc(p.category) + ' · ' + (out ? '<span style="color:var(--danger)">Esgotado</span>' : p.stock + ' em estoque') + '</div><h3>' + esc(p.name) + '</h3><p class="small muted mt-1">' + esc(p.description) + '</p></div>' +
-          '<div class="row-between mt-3"><div>' + (p.promoPrice != null ? '<div class="price-old">' + money(p.price) + '</div>' : '') + '<div class="price mono">' + money(price) + '</div></div><button class="btn btn-sm" ' + (out ? 'disabled' : '') + ' data-act="add-cart" data-id="' + p.id + '">' + (out ? 'Indisponível' : ic('plus', 13) + ' Adicionar') + '</button></div></div></article>';
+          '<div class="row-between mt-3"><div>' + (p.promoPrice != null ? '<div class="price-old">' + money(p.price) + '</div>' : '') + '<div class="price mono">' + money(price) + '</div></div><button class="btn btn-sm" ' + (out ? 'disabled' : '') + ' data-act="add-cart" data-id="' + esc(p.id) + '">' + (out ? 'Indisponível' : ic('plus', 13) + ' Adicionar') + '</button></div></div></article>';
       }).join('') + '</div></section>';
   }
 
@@ -1174,8 +1199,8 @@
         '<div class="divider"></div><div class="row-between small"><span class="muted">Pagamento</span><span>' + (a.paymentStatus === 'paid' ? 'Pago · ' + (a.paymentMethod === 'pix' ? 'Pix' : a.paymentMethod === 'credit_card' ? 'Cartão' : 'Na barbearia') : 'Pendente') + '</span></div>' +
         '<div class="row-between small mt-1"><span class="muted">Valor</span><strong class="gold mono">' + money(a.servicePrice) + '</strong></div>' +
         (a.pointsEarned ? '<div class="row-between small mt-1"><span class="muted">Pontos ganhos</span><span class="gold">+' + a.pointsEarned + '</span></div>' : '') +
-        '<div class="row wrap mt-3">' + (a.status !== 'completed' && a.status !== 'cancelled' ? '<button class="btn btn-sm" data-act="book-reschedule" data-id="' + a.id + '">Remarcar</button><button class="btn btn-sm btn-danger" data-act="apt-cancel" data-id="' + a.id + '">Cancelar</button>' : '') +
-        (a.status === 'completed' ? (reviewed ? '<span class="badge ok">Avaliado</span>' : '<button class="btn btn-sm" data-act="review-open" data-id="' + a.id + '">Avaliar atendimento</button>') : '') + '</div></article>';
+        '<div class="row wrap mt-3">' + (a.status !== 'completed' && a.status !== 'cancelled' ? '<button class="btn btn-sm" data-act="book-reschedule" data-id="' + esc(a.id) + '">Remarcar</button><button class="btn btn-sm btn-danger" data-act="apt-cancel" data-id="' + esc(a.id) + '">Cancelar</button>' : '') +
+        (a.status === 'completed' ? (reviewed ? '<span class="badge ok">Avaliado</span>' : '<button class="btn btn-sm" data-act="review-open" data-id="' + esc(a.id) + '">Avaliar atendimento</button>') : '') + '</div></article>';
     }).join('') + '</div>' : '<div class="card empty">Nenhum agendamento nesta lista. <button class="link-btn" data-act="book-start">Agendar agora ' + ic('arrow', 14) + '</button></div>';
 
     if (orders.length) {
@@ -1201,7 +1226,7 @@
     return '<section class="container section"><div class="eyebrow">Programa de Fidelidade</div><h1>Meus Prêmios</h1>' +
       '<div class="card mt-4" style="background:linear-gradient(120deg,#18191C,#2a2415);border-color:rgba(226,183,67,.45)"><div class="row-between wrap"><div><div class="eyebrow">Saldo disponível</div><div class="display gold" style="font-size:48px">' + balance + ' <span class="small">pontos</span></div><p class="muted small mt-1">Acumule pontos a cada corte ou compra e troque por descontos exclusivos.</p></div><div style="font-size:60px;color:var(--gold)">' + ic('award', 60) + '</div></div></div>' +
       '<div class="mt-4">' + sectionHead('Resgate', 'Recompensas Disponíveis') + '<div class="grid grid-3">' + state.rewards.filter(function (r) { return r.active; }).map(function (r) {
-        return '<article class="card card-hover"><div class="row-between"><div class="eyebrow">' + appliesToLabel(r.appliesTo) + '</div><span class="badge gold">' + r.pointsCost + ' pts</span></div><h3 class="mt-2">' + esc(r.title) + '</h3><p class="small muted mt-1">' + esc(r.description) + '</p><button class="btn btn-primary btn-block mt-3" data-act="redeem" data-id="' + r.id + '">' + (balance >= r.pointsCost ? 'Resgatar cupom' : 'Pontos insuficientes') + '</button></article>';
+        return '<article class="card card-hover"><div class="row-between"><div class="eyebrow">' + appliesToLabel(r.appliesTo) + '</div><span class="badge gold">' + r.pointsCost + ' pts</span></div><h3 class="mt-2">' + esc(r.title) + '</h3><p class="small muted mt-1">' + esc(r.description) + '</p><button class="btn btn-primary btn-block mt-3" data-act="redeem" data-id="' + esc(r.id) + '">' + (balance >= r.pointsCost ? 'Resgatar cupom' : 'Pontos insuficientes') + '</button></article>';
       }).join('') + '</div></div>' +
       '<div class="mt-4">' + sectionHead('Cupons', 'Meus Resgates') + (coupons.length ? '<div class="panel">' + coupons.map(function (c) {
         return '<div class="row-between" style="padding:16px;border-bottom:1px solid var(--border);flex-wrap:wrap"><div><strong class="mono gold">' + esc(c.code) + '</strong><div class="small muted mt-1">' + esc(c.rewardTitle) + ' · ' + money(c.discountAmount) + ' de desconto · ' + fmtDate(c.redeemedAt) + '</div></div>' + statusBadge(c.status) + '</div>';
@@ -1294,7 +1319,7 @@
       var status = isUsers
         ? '<span class="badge ' + (item.role === 'admin' ? 'gold' : '') + '">' + (item.role === 'admin' ? 'Administrador' : 'Cliente') + '</span>'
         : statusBadge(item.active ? 'active' : 'inactive');
-      return '<tr>' + cells + '<td>' + status + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="admin-edit" data-kind="' + kind + '" data-id="' + item.id + '">' + ic('edit', 13) + '</button><button class="btn btn-sm btn-danger" data-act="admin-delete" data-kind="' + kind + '" data-id="' + item.id + '">' + ic('trash', 13) + '</button></div></td></tr>';
+      return '<tr>' + cells + '<td>' + status + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="admin-edit" data-kind="' + kind + '" data-id="' + esc(item.id) + '">' + ic('edit', 13) + '</button><button class="btn btn-sm btn-danger" data-act="admin-delete" data-kind="' + kind + '" data-id="' + esc(item.id) + '">' + ic('trash', 13) + '</button></div></td></tr>';
     }).join('');
     return '<div class="row-between"><div><div class="eyebrow">' + (isUsers ? 'Banco de dados' : 'Conteúdo') + '</div><h2>' + cfg.title + '</h2></div><button class="btn btn-primary" data-act="admin-new" data-kind="' + kind + '">' + ic('plus', 15) + ' Novo</button></div>' +
       '<div class="panel table-wrap mt-3"><table><thead><tr>' + heads + '<th>' + (isUsers ? 'Perfil' : 'Status') + '</th><th>Ações</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="center muted">Nenhum item cadastrado.</td></tr>') + '</tbody></table></div>' + adminFormHTML();
@@ -1323,7 +1348,7 @@
     var list = state.appointments.filter(function (a) { return a.date === ui.adminDate; }).sort(function (a, b) { return a.time.localeCompare(b.time); });
     return '<div><div class="eyebrow">Operação</div><h2>Agenda do dia</h2><label class="field mt-3" style="max-width:260px"><span>Data</span><input type="date" id="admin-date" value="' + esc(ui.adminDate) + '"></label>' +
       '<div class="panel table-wrap mt-3"><table><thead><tr><th>Hora</th><th>Cliente</th><th>Serviço</th><th>Barbeiro</th><th>Pagamento</th><th>Status</th></tr></thead><tbody>' +
-      (list.length ? list.map(function (a) { return '<tr><td class="mono">' + esc(a.time) + '</td><td>' + esc(a.clientName) + '<div class="small muted">' + esc(a.clientPhone) + '</div></td><td>' + esc(a.serviceName) + '</td><td>' + esc(a.barberName) + '</td><td>' + (a.paymentStatus === 'paid' ? 'Pago' : 'Pendente') + '</td><td><select data-act="admin-status" data-id="' + a.id + '" class="btn btn-sm"><option value="pending"' + (a.status === 'pending' ? ' selected' : '') + '>Pendente</option><option value="confirmed"' + (a.status === 'confirmed' ? ' selected' : '') + '>Confirmado</option><option value="completed"' + (a.status === 'completed' ? ' selected' : '') + '>Concluído</option><option value="cancelled"' + (a.status === 'cancelled' ? ' selected' : '') + '>Cancelado</option><option value="paid"' + (a.paymentStatus === 'pending' ? '' : '') + '>Marcar pago</option></select></td></tr>'; }).join('') : '<tr><td colspan="6" class="center muted">Nenhum agendamento nesta data.</td></tr>') + '</tbody></table></div></div>';
+      (list.length ? list.map(function (a) { return '<tr><td class="mono">' + esc(a.time) + '</td><td>' + esc(a.clientName) + '<div class="small muted">' + esc(a.clientPhone) + '</div></td><td>' + esc(a.serviceName) + '</td><td>' + esc(a.barberName) + '</td><td>' + (a.paymentStatus === 'paid' ? 'Pago' : 'Pendente') + '</td><td><select data-act="admin-status" data-id="' + esc(a.id) + '" class="btn btn-sm"><option value="pending"' + (a.status === 'pending' ? ' selected' : '') + '>Pendente</option><option value="confirmed"' + (a.status === 'confirmed' ? ' selected' : '') + '>Confirmado</option><option value="completed"' + (a.status === 'completed' ? ' selected' : '') + '>Concluído</option><option value="cancelled"' + (a.status === 'cancelled' ? ' selected' : '') + '>Cancelado</option><option value="paid">Marcar pago</option></select></td></tr>'; }).join('') : '<tr><td colspan="6" class="center muted">Nenhum agendamento nesta data.</td></tr>') + '</tbody></table></div></div>';
   }
 
   function adminReviews() {
@@ -1333,17 +1358,17 @@
         return '<div class="reply-item small" style="padding:6px 0;border-top:1px dashed var(--border)">' +
           '<div class="row-between"><strong class="gold">' + esc(rp.author || 'EDY-K') + '</strong><span class="muted">' + fmtDate(rp.createdAt) + '</span></div>' +
           (editing
-            ? '<form class="mt-1" data-form="reply-edit" data-review="' + r.id + '" data-id="' + rp.id + '"><textarea name="comment" rows="2">' + esc(rp.comment) + '</textarea><div class="row mt-1"><button class="btn btn-sm btn-primary" type="submit">Salvar</button><button class="btn btn-sm" type="button" data-act="reply-edit-cancel">Cancelar</button></div></form>'
-            : '<div class="mt-1">' + esc(rp.comment) + '</div><div class="row mt-1"><button class="btn btn-sm" data-act="reply-edit-open" data-review="' + r.id + '" data-id="' + rp.id + '">Editar resposta</button><button class="btn btn-sm btn-danger" data-act="reply-delete" data-review="' + r.id + '" data-id="' + rp.id + '">Excluir</button></div>') +
+            ? '<form class="mt-1" data-form="reply-edit" data-review="' + esc(r.id) + '" data-id="' + esc(rp.id) + '"><textarea name="comment" rows="2">' + esc(rp.comment) + '</textarea><div class="row mt-1"><button class="btn btn-sm btn-primary" type="submit">Salvar</button><button class="btn btn-sm" type="button" data-act="reply-edit-cancel">Cancelar</button></div></form>'
+            : '<div class="mt-1">' + esc(rp.comment) + '</div><div class="row mt-1"><button class="btn btn-sm" data-act="reply-edit-open" data-review="' + esc(r.id) + '" data-id="' + esc(rp.id) + '">Editar resposta</button><button class="btn btn-sm btn-danger" data-act="reply-delete" data-review="' + esc(r.id) + '" data-id="' + esc(rp.id) + '">Excluir</button></div>') +
           '</div>';
       }).join('');
       var editForm = ui.reviewEditFor === r.id
-        ? '<form class="mt-2" data-form="review-edit" data-id="' + r.id + '"><textarea name="comment" rows="3">' + esc(r.comment) + '</textarea><div class="row mt-1"><button class="btn btn-sm btn-primary" type="submit">Salvar comentário</button><button class="btn btn-sm" type="button" data-act="review-edit-cancel">Cancelar</button></div></form>'
+        ? '<form class="mt-2" data-form="review-edit" data-id="' + esc(r.id) + '"><textarea name="comment" rows="3">' + esc(r.comment) + '</textarea><div class="row mt-1"><button class="btn btn-sm btn-primary" type="submit">Salvar comentário</button><button class="btn btn-sm" type="button" data-act="review-edit-cancel">Cancelar</button></div></form>'
         : '<div>"' + esc(r.comment) + '"</div>';
       var replyForm = ui.reviewReplyFor === r.id
-        ? '<form class="mt-2" data-form="review-reply" data-id="' + r.id + '"><textarea name="comment" rows="2" placeholder="Responder como EDY-K"></textarea><div class="row mt-1"><button class="btn btn-sm btn-primary" type="submit">Publicar resposta</button><button class="btn btn-sm" type="button" data-act="review-reply-cancel">Cancelar</button></div></form>'
+        ? '<form class="mt-2" data-form="review-reply" data-id="' + esc(r.id) + '"><textarea name="comment" rows="2" placeholder="Responder como EDY-K"></textarea><div class="row mt-1"><button class="btn btn-sm btn-primary" type="submit">Publicar resposta</button><button class="btn btn-sm" type="button" data-act="review-reply-cancel">Cancelar</button></div></form>'
         : '';
-      return '<tr><td class="mono">' + fmtDate(r.createdAt) + '</td><td>' + esc(r.clientName) + '<div class="small muted">' + esc(r.barberName) + '</div></td><td class="gold mono">' + r.serviceRating + '★ / ' + r.barberRating + '★</td><td style="max-width:340px">' + editForm + replies + replyForm + '</td><td>' + statusBadge(r.status === 'approved' ? 'approved' : 'hidden') + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="review-reply-open" data-id="' + r.id + '">' + ic('edit', 13) + ' Responder</button><button class="btn btn-sm" data-act="review-edit-open" data-id="' + r.id + '">Editar</button><button class="btn btn-sm" data-act="review-moderate" data-id="' + r.id + '">' + (r.status === 'approved' ? 'Ocultar' : 'Aprovar') + '</button><button class="btn btn-sm btn-danger" data-act="review-delete" data-id="' + r.id + '">' + ic('trash', 13) + '</button></div></td></tr>';
+      return '<tr><td class="mono">' + fmtDate(r.createdAt) + '</td><td>' + esc(r.clientName) + '<div class="small muted">' + esc(r.barberName) + '</div></td><td class="gold mono">' + r.serviceRating + '★ / ' + r.barberRating + '★</td><td style="max-width:340px">' + editForm + replies + replyForm + '</td><td>' + statusBadge(r.status === 'approved' ? 'approved' : 'hidden') + '</td><td><div class="table-actions"><button class="btn btn-sm" data-act="review-reply-open" data-id="' + esc(r.id) + '">' + ic('edit', 13) + ' Responder</button><button class="btn btn-sm" data-act="review-edit-open" data-id="' + esc(r.id) + '">Editar</button><button class="btn btn-sm" data-act="review-moderate" data-id="' + esc(r.id) + '">' + (r.status === 'approved' ? 'Ocultar' : 'Aprovar') + '</button><button class="btn btn-sm btn-danger" data-act="review-delete" data-id="' + esc(r.id) + '">' + ic('trash', 13) + '</button></div></td></tr>';
     }).join('');
     return '<div><div class="row-between"><div><div class="eyebrow">Moderação</div><h2>Avaliações e comentários</h2></div><span class="badge ok">' + state.reviews.length + ' avaliação(ões)</span></div>' +
       '<p class="muted small mt-2">Você pode responder, editar, ocultar ou excluir avaliações. As respostas aparecem na página inicial.</p>' +
@@ -1355,7 +1380,7 @@
       var pay = o.paymentStatus === 'paid';
       var payLabel = o.paymentMethod === 'pix' ? 'Pix' : o.paymentMethod === 'credit_card' ? 'Cartão' : 'Na loja';
       var statuses = ['pending', 'preparing', 'ready', 'delivered', 'cancelled'];
-      return '<tr><td class="mono">' + fmtDate(o.createdAt) + '</td><td>' + esc(o.clientName) + '<div class="small muted">' + esc(o.clientPhone) + '</div></td><td>' + o.items.length + ' item(ns)</td><td class="mono">' + money(o.total) + '</td><td>' + esc(payLabel) + '</td><td><span class="badge ' + (pay ? 'ok' : 'warn') + '">' + (pay ? 'Pago' : 'Pendente') + '</span></td><td><select data-act="admin-order-payment" data-id="' + o.id + '" class="btn btn-sm"><option value="paid"' + (pay ? ' selected' : '') + '>Pago</option><option value="pending"' + (!pay ? ' selected' : '') + '>Pendente</option></select></td><td>' + statusBadge(o.status) + '</td><td><select data-act="admin-order-status" data-id="' + o.id + '" class="btn btn-sm">' + statuses.map(function (s) { return '<option value="' + s + '"' + (o.status === s ? ' selected' : '') + '>' + statusLabel(s) + '</option>'; }).join('') + '</select></td></tr>';
+      return '<tr><td class="mono">' + fmtDate(o.createdAt) + '</td><td>' + esc(o.clientName) + '<div class="small muted">' + esc(o.clientPhone) + '</div></td><td>' + o.items.length + ' item(ns)</td><td class="mono">' + money(o.total) + '</td><td>' + esc(payLabel) + '</td><td><span class="badge ' + (pay ? 'ok' : 'warn') + '">' + (pay ? 'Pago' : 'Pendente') + '</span></td><td><select data-act="admin-order-payment" data-id="' + esc(o.id) + '" class="btn btn-sm"><option value="paid"' + (pay ? ' selected' : '') + '>Pago</option><option value="pending"' + (!pay ? ' selected' : '') + '>Pendente</option></select></td><td>' + statusBadge(o.status) + '</td><td><select data-act="admin-order-status" data-id="' + esc(o.id) + '" class="btn btn-sm">' + statuses.map(function (s) { return '<option value="' + s + '"' + (o.status === s ? ' selected' : '') + '>' + statusLabel(s) + '</option>'; }).join('') + '</select></td></tr>';
     }).join('');
     var faturado = state.orders.reduce(function (s, o) { return s + (o.paymentStatus === 'paid' ? o.total : 0); }, 0);
     return '<div><div class="row-between"><div><div class="eyebrow">Financeiro</div><h2>Pedidos e pagamentos</h2></div><div class="display" style="font-size:22px">' + money(faturado) + '</div></div>' +
@@ -1466,8 +1491,8 @@
       var p = state.products.find(function (x) { return x.id === i.productId; });
       if (!p) return '';
       var unit = p.promoPrice != null ? p.promoPrice : p.price;
-      return '<div class="cart-item"><img src="' + esc(p.image) + '" alt="' + esc(p.name) + '"><div class="grow"><div class="row-between"><strong style="font-size:13px">' + esc(p.name) + '</strong><button class="link-btn" data-act="cart-remove" data-id="' + p.id + '">' + ic('trash', 14) + '</button></div><div class="small muted mt-1">' + money(unit) + ' / un.</div>' +
-        '<div class="row-between mt-2"><div class="qty"><button data-act="cart-qty" data-id="' + p.id + '" data-delta="-1">−</button><span class="mono">' + i.quantity + '</span><button data-act="cart-qty" data-id="' + p.id + '" data-delta="1">+</button></div><strong class="gold mono">' + money(unit * i.quantity) + '</strong></div></div></div>';
+      return '<div class="cart-item"><img src="' + esc(p.image) + '" alt="' + esc(p.name) + '"><div class="grow"><div class="row-between"><strong style="font-size:13px">' + esc(p.name) + '</strong><button class="link-btn" data-act="cart-remove" data-id="' + esc(p.id) + '">' + ic('trash', 14) + '</button></div><div class="small muted mt-1">' + money(unit) + ' / un.</div>' +
+        '<div class="row-between mt-2"><div class="qty"><button data-act="cart-qty" data-id="' + esc(p.id) + '" data-delta="-1">−</button><span class="mono">' + i.quantity + '</span><button data-act="cart-qty" data-id="' + esc(p.id) + '" data-delta="1">+</button></div><strong class="gold mono">' + money(unit * i.quantity) + '</strong></div></div></div>';
     }).join('');
     var subtotal = cartSubtotal();
     var body, foot;
@@ -1479,7 +1504,7 @@
         '<label class="field"><span>Endereço de entrega</span><input name="address" placeholder="Rua, número, bairro"></label>' +
         '<label class="field"><span>Pagamento</span><select name="method"><option value="pix">Pix</option><option value="credit_card">Cartão de crédito</option></select></label>' +
         '<label class="field"><span>Parcelas</span><select name="installments"><option>1</option><option>2</option><option>3</option><option>4</option><option>6</option></select></label>' +
-        (coupons.length ? '<label class="field"><span>Cupom</span><select name="rewardId"><option value="">Nenhum cupom</option>' + coupons.map(function (r) { return '<option value="' + r.id + '">' + esc(r.code) + ' — ' + esc(r.rewardTitle) + '</option>'; }).join('') + '</select></label>' : '') +
+        (coupons.length ? '<label class="field"><span>Cupom</span><select name="rewardId"><option value="">Nenhum cupom</option>' + coupons.map(function (r) { return '<option value="' + esc(r.id) + '">' + esc(r.code) + ' — ' + esc(r.rewardTitle) + '</option>'; }).join('') + '</select></label>' : '') +
         '<button class="btn btn-primary btn-block btn-lg mt-2" type="submit">Confirmar pedido · ' + money(subtotal) + '</button></form>';
       foot = '<button class="btn btn-block" data-act="cart-tab" data-tab="cart">Voltar ao carrinho</button>';
     } else {

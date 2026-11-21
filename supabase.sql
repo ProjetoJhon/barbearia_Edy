@@ -44,18 +44,21 @@ create table public.users (
 -- ---------------------------------------------------------------------------
 -- 3. Helper de administrador
 -- Lê o papel do JWT assinado pelo Supabase, não do localStorage nem da tabela.
--- Assim, mudar "role" no perfil não concede privilégio administrativo.
+--
+-- SEGURANÇA: usa APENAS app_metadata. O campo user_metadata pode ser definido
+-- por qualquer visitante no próprio cadastro (/auth/v1/signup com "data"),
+-- por isso NUNCA deve ser usado como fonte de autorização. Se is_admin()
+-- lesse user_metadata, qualquer pessoa poderia se cadastrar com
+-- {"role":"admin"} e ganhar acesso administrativo via RLS.
+-- app_metadata só pode ser alterado com privilégio de service_role ou pelo
+-- SQL Editor do Supabase.
 -- ---------------------------------------------------------------------------
 create or replace function public.is_admin()
 returns boolean
 language sql
 stable
 as $$
-  select coalesce(
-    auth.jwt() -> 'user_metadata' ->> 'role',
-    auth.jwt() -> 'app_metadata' ->> 'role',
-    ''
-  ) = 'admin';
+  select coalesce(auth.jwt() -> 'app_metadata' ->> 'role', '') = 'admin';
 $$;
 
 revoke all on function public.is_admin() from public;
@@ -139,10 +142,18 @@ notify pgrst, 'reload schema';
 -- ---------------------------------------------------------------------------
 -- 7. Opcional — promover o usuário admin criado no Authentication
 -- Execute DEPOIS de criar admin@edyk.com pelo painel do Supabase.
--- Depois disso, faça logout/login no app para o JWT receber a nova claim.
+--
+-- Use raw_app_meta_data (NÃO raw_user_meta_data): só assim a claim vai para
+-- app_metadata no JWT e é aceita por public.is_admin(). Depois de promover,
+-- faça logout/login no app para o JWT ser reemitido com a nova claim.
 -- ---------------------------------------------------------------------------
 -- update auth.users
--- set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
+-- set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
+-- where email = 'admin@edyk.com';
+--
+-- Para revogar:
+-- update auth.users
+-- set raw_app_meta_data = raw_app_meta_data - 'role'
 -- where email = 'admin@edyk.com';
 
 -- ---------------------------------------------------------------------------
