@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="SQL Editor: cole supabase.sql e clique em Run">
+  <rect width="1200" height="675" fill="#0d0e10"/>
+  <rect x="24" y="24" width="1152" height="627" rx="14" fill="#15171b" stroke="#2c2e33" stroke-width="2"/>
+
+  <!-- sidebar -->
+  <rect x="24" y="24" width="248" height="627" rx="14" fill="#101216"/>
+  <text x="52" y="70" fill="#3ecf8e" font-family="Oswald,Arial,sans-serif" font-size="22" font-weight="700" letter-spacing="1">SUPABASE</text>
+  <text x="52" y="96" fill="#71747c" font-family="Arial,sans-serif" font-size="13">projeto: fmiyckfvfhnysqtaoemm</text>
+
+  <rect x="40" y="126" width="216" height="40" rx="8" fill="#1c3329"/>
+  <circle cx="60" cy="146" r="5" fill="#3ecf8e"/>
+  <text x="78" y="152" fill="#3ecf8e" font-family="Arial,sans-serif" font-size="16" font-weight="700">SQL Editor</text>
+  <text x="78" y="204" fill="#a7a9af" font-family="Arial,sans-serif" font-size="16">Table Editor</text>
+  <text x="78" y="256" fill="#a7a9af" font-family="Arial,sans-serif" font-size="16">Database</text>
+  <text x="78" y="308" fill="#a7a9af" font-family="Arial,sans-serif" font-size="16">Authentication</text>
+  <text x="78" y="360" fill="#a7a9af" font-family="Arial,sans-serif" font-size="16">Storage</text>
+
+  <!-- header -->
+  <text x="304" y="76" fill="#f2f2f2" font-family="Oswald,Arial,sans-serif" font-size="26" font-weight="700" letter-spacing="1">SQL EDITOR</text>
+  <rect x="986" y="46" width="150" height="38" rx="8" fill="#202329" stroke="#3a3d44"/>
+  <text x="1010" y="71" fill="#e9e9ea" font-family="Arial,sans-serif" font-size="15">+ New query</text>
+
+  <!-- editor -->
+  <rect x="296" y="104" width="856" height="386" rx="10" fill="#0a0b0d" stroke="#2c2e33"/>
+  <rect x="296" y="104" width="856" height="36" rx="10" fill="#15171b"/>
+  <text x="316" y="128" fill="#8b8e95" font-family="Consolas,monospace" font-size="13">Query 1 · supabase.sql</text>
+  <g font-family="Consolas,monospace" font-size="15" fill="#d6d7da">
+    <text x="316" y="180" fill="#6b8f7f">-- 1. Reaplique o arquivo completo</text>
+    <text x="316" y="212">create or replace function</text>
+    <text x="316" y="244">  public.is_admin()</text>
+    <text x="316" y="276">returns boolean language sql as $$</text>
+    <text x="316" y="308" fill="#f4d013">  select public.is_owner();</text>
+    <text x="316" y="340">$$;</text>
+    <text x="316" y="380" fill="#6b8f7f">-- is_admin() = is_owner()</text>
+    <text x="316" y="420" fill="#6b8f7f">-- admin parcial: false no RLS</text>
+  </g>
+
+  <!-- run button + highlight -->
+  <rect x="980" y="546" width="146" height="46" rx="8" fill="#3ecf8e"/>
+  <text x="1022" y="576" fill="#08231a" font-family="Arial,sans-serif" font-size="18" font-weight="700">Run</text>
+  <ellipse cx="1053" cy="569" rx="98" ry="42" fill="none" stroke="#ff5c5c" stroke-width="4" transform="rotate(-8 1053 569)"/>
+  <path d="M 930 520 L 1000 552" stroke="#ff5c5c" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 930 520 l 24 -3 l -10 22" fill="#ff5c5c"/>
+
+  <text x="304" y="566" fill="#a7a9af" font-family="Arial,sans-serif" font-size="17">Cole todo o conteúdo de <tspan fill="#f4d013" font-family="Consolas,monospace">supabase.sql</tspan> e execute.</text>
+  <text x="304" y="596" fill="#71747c" font-family="Arial,sans-serif" font-size="14">Resultado esperado: Success. No rows returned.</text>
+</svg>

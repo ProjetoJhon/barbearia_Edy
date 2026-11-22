@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="SQL de promoção com raw_app_meta_data para owner e admin">
+  <rect width="1200" height="675" fill="#0d0e10"/>
+  <rect x="24" y="24" width="1152" height="627" rx="14" fill="#15171b" stroke="#2c2e33" stroke-width="2"/>
+  <text x="56" y="72" fill="#f2f2f2" font-family="Oswald,Arial,sans-serif" font-size="26" font-weight="700">SQL EDITOR — PROMOÇÃO DE PERFIS</text>
+  <text x="56" y="100" fill="#8b8e95" font-family="Arial,sans-serif" font-size="14">New query → cole os dois UPDATEs → Run</text>
+
+  <rect x="48" y="124" width="1104" height="420" rx="10" fill="#0a0b0d" stroke="#2c2e33"/>
+  <g font-family="Consolas,monospace" font-size="15.5" fill="#d6d7da">
+    <text x="72" y="162" fill="#6b8f7f">-- proprietário: acesso total</text>
+    <text x="72" y="194">update auth.users</text>
+    <text x="72" y="226">set <tspan fill="#f4d013">raw_app_meta_data</tspan> = coalesce(raw_app_meta_data,</text>
+    <text x="72" y="258">    '{}'::jsonb) || '{"role":"owner"}'::jsonb,</text>
+    <text x="72" y="290">    <tspan fill="#ff9d9d">raw_user_meta_data</tspan> = coalesce(raw_user_meta_data,</text>
+    <text x="72" y="322">    '{}'::jsonb) - 'role'</text>
+    <text x="72" y="354">where email = 'trabalhojonatha@gmail.com';</text>
+    <text x="72" y="398" fill="#6b8f7f">-- administrador: painel, sem banco</text>
+    <text x="72" y="430">update auth.users</text>
+    <text x="72" y="462">set <tspan fill="#f4d013">raw_app_meta_data</tspan> = coalesce(raw_app_meta_data,</text>
+    <text x="72" y="494">    '{}'::jsonb) || '{"role":"admin"}'::jsonb,</text>
+    <text x="72" y="526">    <tspan fill="#ff9d9d">raw_user_meta_data</tspan> = coalesce(raw_user_meta_data,</text>
+  </g>
+
+  <rect x="942" y="144" width="96" height="28" rx="14" fill="#1c3329"/>
+  <text x="962" y="163" fill="#3ecf8e" font-family="Arial,sans-serif" font-size="14" font-weight="700">owner ✓</text>
+  <rect x="942" y="380" width="96" height="28" rx="14" fill="#14243a"/>
+  <text x="960" y="399" fill="#7cb7ff" font-family="Arial,sans-serif" font-size="14" font-weight="700">admin ✓</text>
+
+  <rect x="972" y="568" width="146" height="46" rx="8" fill="#3ecf8e"/>
+  <text x="1014" y="598" fill="#08231a" font-family="Arial,sans-serif" font-size="18" font-weight="700">Run</text>
+  <ellipse cx="1045" cy="591" rx="98" ry="42" fill="none" stroke="#ff5c5c" stroke-width="4" transform="rotate(-8 1045 591)"/>
+
+  <text x="56" y="596" fill="#ff9d9d" font-family="Arial,sans-serif" font-size="16">Use raw_app_meta_data — nunca raw_user_meta_data como autorização.</text>
+  <text x="56" y="624" fill="#71747c" font-family="Arial,sans-serif" font-size="13">Os comandos acima também removem a chave antiga "role" do user_metadata.</text>
+</svg>

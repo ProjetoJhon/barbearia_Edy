@@ -85,7 +85,7 @@ Não há `package.json`, `node_modules`, transpilação ou build. Usuários e pr
 - Dashboard com indicadores.
 - Gestão da agenda, status de agendamentos e marcação de pagamento recebido.
 - Gestão de pedidos: status de entrega e pagamento pago/pendente.
-- Consultar, editar e excluir serviços, produtos, barbeiros e recompensas. Criar itens é privilégio do proprietário.
+- Consultar, criar, editar e excluir serviços, produtos, barbeiros e recompensas. Itens criados pelo administrador ficam locais até o proprietário sincronizar.
 - CRUD de usuários e abas **Supabase** e **Configurações** exclusivas do proprietário.
 - Sincronização remota de produtos apenas com o proprietário autenticado; o administrador parcial trabalha no conteúdo local.
 - Avaliações e comentários: responder, editar, ocultar/aprovar e excluir avaliações; editar e excluir respostas. As respostas aparecem na página inicial.
@@ -150,7 +150,7 @@ Esses valores já estão em `vercel.json`. Não é preciso `npm install` nem var
 | Perfil | Painel | Criar itens | Usuários / Supabase / Configurações | Banco de dados (Supabase) |
 | --- | --- | --- | --- | --- |
 | **Proprietário** (`owner`) | Sim | Sim | Sim | Acesso total (`users` e `products`) |
-| **Administrador** (`admin`) | Sim | Não | Não | **Nenhum acesso** — nenhuma chamada REST de banco |
+| **Administrador** (`admin`) | Sim | Sim (somente locais) | Não | **Nenhum acesso** — nenhuma chamada REST de banco |
 | **Cliente** (`client`) | Não | Não | Não | Só o próprio perfil via RLS |
 
 O nível vem sempre do JWT assinado pelo Supabase (`app_metadata.role`). O app decodifica essa claim **apenas para mostrar/esconder a interface**; quem autoriza de verdade é o RLS. Mexer em `localStorage`, em `user_metadata` ou na tabela `users` não concede privilégios.
@@ -158,9 +158,9 @@ O nível vem sempre do JWT assinado pelo Supabase (`app_metadata.role`). O app d
 O administrador parcial pode consultar, editar e excluir conteúdo do painel (agenda, pedidos, avaliações, serviços, produtos, barbeiros e recompensas), mas:
 
 - não vê as abas **Usuários**, **Supabase** nem **Configurações**;
-- não vê botão **Novo** (criação é exclusiva do proprietário);
+- pode usar o botão **Novo** para criar itens, mas eles ficam apenas no navegador até o proprietário sincronizar;
 - não dispara `sbRequest()` nem carrega/perfila usuários e produtos remotamente;
-- alterações de produto ficam apenas no navegador até o proprietário sincronizar.
+- não cria nem edita usuários do banco.
 
 ## Arquitetura de dados
 
@@ -339,7 +339,7 @@ Resultado: SUCESSO (17/17 etapas)
 | Ação no painel | Proprietário | Administrador parcial |
 | --- | --- | --- |
 | Ver abas Usuários / Supabase / Configurações | ✅ | ❌ (ocultas) |
-| Criar serviços, produtos, barbeiros e recompensas | ✅ | ❌ (botão **Novo** oculto) |
+| Criar serviços, produtos, barbeiros e recompensas | ✅ | ✅ (apenas no navegador) |
 | Consultar, editar e excluir conteúdo local | ✅ | ✅ |
 | Editar configurações da loja e restaurar demo | ✅ | ❌ |
 | Testar/publicar no Supabase | ✅ | ❌ (nenhuma chamada REST) |
@@ -402,7 +402,7 @@ No Vercel:
 - Visitantes e clientes só leem produtos ativos; o administrador parcial não lê tabelas remotas; escrita remota é exclusiva do proprietário.
 - O front-end decodifica a claim `app_metadata.role` somente para esconder/mostrar controles. Não há confiança nessa decodificação para autorização: o RLS bloqueia qualquer chamada direta.
 - O token de sessão fica em `sessionStorage` (`edyk_auth_session`) e **não** é enviado para a API Python compartilhada; ele expira com a aba do navegador.
-- Em dispositivos compartilhados, use **Sair do painel**/logout ao terminar.
+- Em dispositivos compartilhados, use o botão do nome no topo (**Sair da conta**) ao terminar; o botão **Sair do painel** da área admin apenas volta à home.
 - `server.py` escuta apenas em `127.0.0.1` por padrão. Para expor na rede (`--host 0.0.0.0`), defina `EDYK_API_TOKEN` e informe o mesmo valor em `config.js` (`localApiToken`) — o cabeçalho `X-EDYK-Token` passa a ser exigido em `/api/state`. O corpo da requisição é limitado a 2 MB.
 - Não exponha `data/store.json` em um servidor público: ele contém o estado local da aplicação.
 - Para produção, mantenha confirmação de e-mail ativada no Supabase Auth e considere mover agendamentos/pedidos para tabelas com RLS próprio.
@@ -439,6 +439,12 @@ Validação recomendada após aplicar o SQL: faça logout/login nas duas contas 
 | Login não persiste após reload | Sessão expirada/configuração alterada | Faça login novamente; o token é renovado automaticamente quando possível |
 
 ## Changelog
+
+### 2026-11-22
+
+- **Criação liberada para a equipe:** o administrador agora vê o botão **Novo** e cria serviços, produtos, barbeiros e recompensas localmente. Usuários, Supabase, Configurações e o banco remoto continuam exclusivos do proprietário.
+- **Auditoria matemática:** frete calculado sobre o valor após desconto, cupons filtrados por tipo (serviço/produto/ambos), receita da loja conta só pedidos pagos, parcelas limitadas a 1–6, estoque/quantidades inteiros, promoção só quando menor que o preço normal, ajuste de quantidade ao estoque no fechamento do pedido, pontos calculados sobre o valor pago (com ajuste ao remarcar) e resumo do checkout recalculado ao vivo.
+- Cache-buster do script atualizado para `app-v2.js?v=20261122-admin-cria`.
 
 ### 2026-11-21
 

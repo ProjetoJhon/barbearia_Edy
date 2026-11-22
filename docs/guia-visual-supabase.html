@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guia visual — configurar owner e admin no Supabase | EDY-K</title>
+<style>
+  :root { --gold:#f4d013; --gold2:#e2b743; --bg:#0d0e10; --card:#17191d; --line:#2c2e33; --txt:#f2f2f2; --muted:#a7a9af; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.65 Inter,Arial,sans-serif; }
+  .wrap { max-width:960px; margin:0 auto; padding:40px 22px 80px; }
+  h1 { font-family:Oswald,Impact,sans-serif; letter-spacing:1px; font-size:38px; margin:0 0 6px; color:var(--gold); }
+  .sub { color:var(--muted); margin:0 0 32px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:26px; margin:0 0 26px; }
+  .step { display:flex; align-items:center; gap:14px; margin:0 0 14px; }
+  .num { flex:0 0 38px; height:38px; border-radius:50%; background:var(--gold); color:#0d0e10; font-weight:800; display:grid; place-items:center; }
+  h2 { font-family:Oswald,Impact,sans-serif; font-size:24px; margin:0; letter-spacing:.5px; }
+  p { margin:10px 0; }
+  img { width:100%; border:1px solid var(--line); border-radius:10px; display:block; margin:18px 0 6px; background:#111; }
+  .legenda { color:var(--muted); font-size:13px; margin:0 0 14px; }
+  code, pre { font-family:"JetBrains Mono",Consolas,monospace; }
+  code { background:#0a0b0d; padding:2px 6px; border-radius:5px; color:var(--gold2); }
+  pre { background:#0a0b0d; border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:8px; padding:16px; overflow:auto; font-size:13px; line-height:1.55; }
+  .aviso { border-left:3px solid #ff6b6b; background:#2a1517; padding:12px 16px; border-radius:8px; margin:16px 0; }
+  .ok { border-left:3px solid #4ade80; background:#12251a; padding:12px 16px; border-radius:8px; margin:16px 0; }
+  ul { padding-left:22px; }
+  .small { font-size:14px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Guia visual — Supabase: proprietário e administrador</h1>
+  <p class="sub">EDY-K Barbershop · 5 etapas · ilustrações didáticas (não são capturas reais do seu painel)</p>
+
+  <div class="card">
+    <div class="step"><span class="num">1</span><h2>Reaplique o SQL corrigido</h2></div>
+    <p>Abra o <strong>Supabase Dashboard</strong> do projeto <code>fmiyckfvfhnysqtaoemm</code> → <strong>SQL Editor</strong> → <strong>New query</strong>. Cole o conteúdo completo de <code>supabase.sql</code> e clique em <strong>Run</strong>.</p>
+    <img src="images/01-sql-editor.svg" alt="SQL Editor com o botão Run destacado">
+    <p class="legenda">Ilustração: cole o arquivo inteiro no editor e execute.</p>
+    <div class="aviso">O script recria a tabela <code>public.users</code>. Se houver dados importantes nela, exporte antes. O resultado esperado é <em>Success. No rows returned</em>.</div>
+    <p>Isso atualiza <code>is_admin()</code> para sinônimo de <code>is_owner()</code> e faz o administrador parcial ser negado até na leitura de <code>users</code> e <code>products</code>.</p>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="num">2</span><h2>Crie a conta do proprietário no Auth</h2></div>
+    <p>Vá em <strong>Authentication → Users → Add user</strong>. Informe <code>trabalhojonatha@gmail.com</code> e uma senha forte, depois clique em <strong>Create user</strong>. Se a conta já existir, pule esta etapa. Confirme também que <code>admin@edyk.com</code> existe.</p>
+    <img src="images/02-authentication-add-user.svg" alt="Authentication → Users → Add user destacado">
+    <p class="legenda">Ilustração: botão de adicionar usuário em Authentication.</p>
+    <p class="small">Não marque “Auto confirm user” por padrão em produção; use apenas se quiser que o e-mail já esteja confirmado para testes.</p>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="num">3</span><h2>Promova owner e admin em raw_app_meta_data</h2></div>
+    <p>Ainda no <strong>SQL Editor</strong>, clique em <strong>New query</strong> e execute:</p>
+    <pre><code>-- Proprietário: acesso total
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"owner"}'::jsonb,
+    raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) - 'role'
+where email = 'trabalhojonatha@gmail.com';
+
+-- Administrador parcial: painel local, sem banco
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb,
+    raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) - 'role'
+where email = 'admin@edyk.com';</code></pre>
+    <img src="images/03-promocao-sql.svg" alt="SQL de promoção com raw_app_meta_data">
+    <p class="legenda">Ilustração: os dois UPDATEs e o botão Run.</p>
+    <div class="aviso">Use <code>raw_app_meta_data</code>, <strong>nunca</strong> <code>raw_user_meta_data</code>. O <code>user_metadata</code> pode ser enviado por qualquer visitante no cadastro; usá-lo como autorização permitiria escalonamento. Os comandos acima também removem a chave antiga <code>role</code> do <code>user_metadata</code>.</div>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="num">4</span><h2>Faça logout e login novamente no app</h2></div>
+    <p>No topo direito do site, clique no botão com o <strong>primeiro nome do usuário e o ícone de saída</strong> (ex.: <code>JONATHA ⏻</code>, título “Sair da conta”). Isso encerra a sessão e força o Supabase a reemitir o JWT com a nova claim <code>app_metadata.role</code>.</p>
+    <div class="aviso">O botão <strong>Sair do painel</strong>, dentro do Painel Administrativo, apenas volta para a home — <strong>não</strong> encerra a sessão. Use o botão do nome no topo.</div>
+    <img src="images/04-login-e-teste.svg" alt="Logout, login e terminal com resultado do teste">
+    <p class="legenda">Ilustração: logout/login no app e o teste no terminal.</p>
+    <p class="small">Com o Supabase configurado, os botões de acesso rápido (“Entrar como proprietário”) desaparecem — use o formulário de e-mail e senha. No modo demo offline eles continuam disponíveis.</p>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="num">5</span><h2>Rode o teste automático</h2></div>
+    <p>No PowerShell, na pasta do projeto:</p>
+    <pre><code>$env:SUPABASE_OWNER_EMAIL = "trabalhojonatha@gmail.com"
+$env:SUPABASE_OWNER_PASSWORD = "SUA_SENHA"
+$env:SUPABASE_ADMIN_EMAIL = "admin@edyk.com"
+$env:SUPABASE_ADMIN_PASSWORD = "SUA_SENHA"
+node test-supabase.mjs</code></pre>
+    <div class="ok">Resultado esperado: <strong>SUCESSO (17/17 etapas)</strong> — proprietário com acesso total, administrador negado em <code>users</code>/<code>products</code>, anônimo sem escrita.</div>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="num">✓</span><h2>Conferência final no painel</h2></div>
+    <ul>
+      <li><strong>Proprietário:</strong> vê as abas Usuários, Supabase e Configurações e o botão <strong>Novo</strong>.</li>
+      <li><strong>Administrador:</strong> não vê essas abas, mas pode usar <strong>Novo</strong> para criar itens locais; cria/exclui/edita conteúdo e não gera requisições para <code>/rest/v1/*</code> (confirme na aba Rede do navegador).</li>
+      <li>Para diagnosticar, rode no SQL Editor: <code>select public.current_role(), public.is_owner(), public.is_admin();</code> — owner retorna <code>owner / true / true</code> e admin retorna <code>admin / false / false</code>.</li>
+    </ul>
+  </div>
+
+  <p class="small">Se o admin perdeu o acesso após o passo 1, é sinal de que a promoção antiga estava em <code>user_metadata</code>: basta reaplicar o passo 3 e fazer logout/login.</p>
+</div>
+</body>
+</html>

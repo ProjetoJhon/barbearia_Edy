@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="Logout e login no app, seguido do teste no terminal com 17 de 17 etapas">
+  <rect width="1200" height="675" fill="#0d0e10"/>
+  <rect x="24" y="24" width="1152" height="627" rx="14" fill="#15171b" stroke="#2c2e33" stroke-width="2"/>
+
+  <!-- left: app -->
+  <rect x="48" y="52" width="534" height="571" rx="12" fill="#0a0b0d" stroke="#3a3020"/>
+  <text x="78" y="98" fill="#f4d013" font-family="Oswald,Arial,sans-serif" font-size="28" font-weight="700" letter-spacing="2">EDY-K</text>
+  <rect x="352" y="70" width="198" height="34" rx="8" fill="#1a1c20" stroke="#5a4430"/>
+  <text x="372" y="92" fill="#f4d013" font-family="Arial,sans-serif" font-size="14">JONATHA  ⏻</text>
+  <ellipse cx="451" cy="87" rx="118" ry="28" fill="none" stroke="#ff5c5c" stroke-width="3.5" transform="rotate(-4 451 87)"/>
+
+  <text x="78" y="176" fill="#f2f2f2" font-family="Oswald,Arial,sans-serif" font-size="26" font-weight="700">ENTRAR</text>
+  <text x="78" y="214" fill="#8b8e95" font-family="Arial,sans-serif" font-size="14">Use e-mail e senha das contas do Supabase Auth.</text>
+
+  <rect x="78" y="244" width="474" height="54" rx="8" fill="#15171b" stroke="#3a3d44"/>
+  <text x="96" y="278" fill="#8b8e95" font-family="Arial,sans-serif" font-size="15">E-mail</text>
+  <text x="240" y="278" fill="#f2f2f2" font-family="Consolas,monospace" font-size="15">trabalhojonatha@gmail.com</text>
+
+  <rect x="78" y="316" width="474" height="54" rx="8" fill="#15171b" stroke="#3a3d44"/>
+  <text x="96" y="350" fill="#8b8e95" font-family="Arial,sans-serif" font-size="15">Senha</text>
+  <text x="240" y="350" fill="#f2f2f2" font-family="Consolas,monospace" font-size="17">••••••••••••</text>
+
+  <rect x="78" y="394" width="474" height="52" rx="8" fill="#f4d013"/>
+  <text x="286" y="428" fill="#0d0e10" font-family="Arial,sans-serif" font-size="18" font-weight="800">ENTRAR</text>
+
+  <text x="78" y="500" fill="#a7a9af" font-family="Arial,sans-serif" font-size="15">1. Clique no nome no topo (Sair da conta)</text>
+  <text x="78" y="534" fill="#a7a9af" font-family="Arial,sans-serif" font-size="15">2. Entre com trabalhojonatha@gmail.com</text>
+  <text x="78" y="568" fill="#a7a9af" font-family="Arial,sans-serif" font-size="15">3. Repita com admin@edyk.com</text>
+  <text x="78" y="602" fill="#71747c" font-family="Arial,sans-serif" font-size="13">O JWT é reemitido com a nova claim app_metadata.role.</text>
+
+  <!-- right: terminal -->
+  <rect x="620" y="52" width="532" height="571" rx="12" fill="#0a0b0d" stroke="#2c2e33"/>
+  <rect x="620" y="52" width="532" height="38" rx="12" fill="#1b1e23"/>
+  <circle cx="646" cy="71" r="6" fill="#ff5c5c"/>
+  <circle cx="666" cy="71" r="6" fill="#f4d013"/>
+  <circle cx="686" cy="71" r="6" fill="#3ecf8e"/>
+  <text x="724" y="77" fill="#a7a9af" font-family="Consolas,monospace" font-size="13">PowerShell — test-supabase.mjs</text>
+
+  <g font-family="Consolas,monospace" font-size="14">
+    <text x="646" y="128" fill="#8b8e95">$env:SUPABASE_OWNER_EMAIL = "..."</text>
+    <text x="646" y="156" fill="#8b8e95">$env:SUPABASE_ADMIN_EMAIL = "..."</text>
+    <text x="646" y="184" fill="#8b8e95">node test-supabase.mjs</text>
+    <text x="646" y="232" fill="#3ecf8e">OK   Login do proprietário</text>
+    <text x="646" y="264" fill="#3ecf8e">OK   Proprietário reconhecido pelo RLS</text>
+    <text x="646" y="296" fill="#3ecf8e">OK   Proprietário insere produto</text>
+    <text x="646" y="328" fill="#3ecf8e">OK   Admin parcial NÃO lê produtos</text>
+    <text x="646" y="360" fill="#3ecf8e">OK   Admin parcial NÃO grava produto</text>
+    <text x="646" y="392" fill="#3ecf8e">OK   Admin parcial NÃO lê usuários</text>
+    <text x="646" y="424" fill="#3ecf8e">OK   Anônimo NÃO grava produto</text>
+    <text x="646" y="456" fill="#3ecf8e">OK   Excluir produtos de teste</text>
+  </g>
+
+  <rect x="644" y="492" width="484" height="54" rx="8" fill="#12251a" stroke="#3ecf8e"/>
+  <text x="666" y="526" fill="#4ade80" font-family="Consolas,monospace" font-size="17" font-weight="700">Resultado: SUCESSO (17/17 etapas)</text>
+  <text x="646" y="584" fill="#71747c" font-family="Arial,sans-serif" font-size="13">Senhas reais ficam apenas nas variáveis de ambiente.</text>
+</svg>
