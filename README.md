@@ -210,18 +210,18 @@ Depois, ainda no SQL Editor, defina os papéis (o SQL de exemplo também está n
 update auth.users
 set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"owner"}'::jsonb,
     raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) - 'role'
-where email = 'trabalhojonatha@gmail.com';
+where email = '';
 
 -- Administrador parcial: painel local, sem acesso ao banco
 update auth.users
 set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb,
     raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) - 'role'
-where email = 'admin@edyk.com';
+where email = '';
 ```
 
-> **Importante:** use `raw_app_meta_data`, nunca `raw_user_meta_data`. O `user_metadata` é enviado pelo próprio cliente no cadastro; usá-lo como fonte de autorização permitiria que qualquer pessoa se registrasse com `{"role":"admin"}` e obtivesse acesso ao painel. Para revogar um papel: `update auth.users set raw_app_meta_data = raw_app_meta_data - 'role' where email = 'admin@edyk.com';`
+> **Importante:** use `raw_app_meta_data`, nunca `raw_user_meta_data`. O `user_metadata` é enviado pelo próprio cliente no cadastro; usá-lo como fonte de autorização permitiria que qualquer pessoa se registrasse com `{"role":"admin"}` e obtivesse acesso ao painel. Para revogar um papel: `update auth.users set raw_app_meta_data = raw_app_meta_data - 'role' where email = '';`
 
-Faça **logout/login** no app para o JWT receber a nova claim. No primeiro login, o proprietário tem o perfil gravado como `owner` e o cliente como `client`; o administrador parcial **não** cria perfil remoto, justamente porque não acessa o banco. Se a conta `admin@edyk.com` havia sido promovida antigamente via `user_metadata`, remova essa chave (os SQL acima já fazem isso).
+Faça **logout/login** no app para o JWT receber a nova claim. No primeiro login, o proprietário tem o perfil gravado como `owner` e o cliente como `client`; o administrador parcial **não** cria perfil remoto, justamente porque não acessa o banco. Se a conta `` havia sido promovida antigamente via `user_metadata`, remova essa chave (os SQL acima já fazem isso).
 
 ### 3. Configure as credenciais
 
@@ -274,7 +274,7 @@ Contas de acesso são gerenciadas no Supabase Auth. O painel não cria nem apaga
 
 ### Pelo painel (somente proprietário)
 
-Entre como **proprietário** (`trabalhojonatha@gmail.com`) e vá em **PAINEL ADMIN → Supabase → TESTAR INSERÇÃO/EXCLUSÃO**. A aba não aparece para o administrador parcial.
+Entre como **proprietário** (``) e vá em **PAINEL ADMIN → Supabase → TESTAR INSERÇÃO/EXCLUSÃO**. A aba não aparece para o administrador parcial.
 
 O teste valida:
 
@@ -292,18 +292,18 @@ O script valida o proprietário (acesso total), o administrador parcial (acesso 
 
 ```bash
 # macOS/Linux
-SUPABASE_OWNER_EMAIL=trabalhojonatha@gmail.com \
+SUPABASE_OWNER_EMAIL=---- \
 SUPABASE_OWNER_PASSWORD=SUA_SENHA \
-SUPABASE_ADMIN_EMAIL=admin@edyk.com \
+SUPABASE_ADMIN_EMAIL=---- \
 SUPABASE_ADMIN_PASSWORD=SUA_SENHA \
 node test-supabase.mjs
 ```
 
 ```powershell
 # Windows PowerShell
-$env:SUPABASE_OWNER_EMAIL = "trabalhojonatha@gmail.com"
+$env:SUPABASE_OWNER_EMAIL = "----"
 $env:SUPABASE_OWNER_PASSWORD = "SUA_SENHA"
-$env:SUPABASE_ADMIN_EMAIL = "admin@edyk.com"
+$env:SUPABASE_ADMIN_EMAIL = "----"
 $env:SUPABASE_ADMIN_PASSWORD = "SUA_SENHA"
 node test-supabase.mjs
 ```
@@ -430,7 +430,7 @@ Validação recomendada após aplicar o SQL: faça logout/login nas duas contas 
 | `PGRST205` | Tabelas não criadas ou cache antigo | Execute `supabase.sql`; se persistir, rode `notify pgrst, 'reload schema';` |
 | `42501 permission denied` | RLS/GRANT não aplicado ou papel errado | Rode novamente `supabase.sql` e entre com a conta correta |
 | `401` no login com Supabase | Usuário não existe no Auth ou senha errada | Crie o usuário em **Authentication → Users** e tente novamente |
-| “Acesso exclusivo do proprietário” | Conta `admin@edyk.com` tentou usar banco/configurações | Entre como `trabalhojonatha@gmail.com` para essas áreas |
+| “Acesso exclusivo do proprietário” | Conta `----` tentou usar banco/configurações | Entre como `----` para essas áreas |
 | Painel Admin não aparece | `raw_app_meta_data.role` não é `owner`/`admin` | Rode o SQL de promoção e faça logout/login |
 | Produtos não aparecem no painel do administrador parcial | Perfil sem acesso ao banco (comportamento esperado) | Use o proprietário para sincronizar; o admin vê apenas dados locais |
 | `new row violates row-level security policy` ao cadastrar | Perfil com `role` diferente do permitido | Cadastre pelo app; nunca envie `role: admin`/`owner` no signup |
@@ -448,7 +448,7 @@ Validação recomendada após aplicar o SQL: faça logout/login nas duas contas 
 
 ### 2026-11-21
 
-- **Distinção de usuários:** `trabalhojonatha@gmail.com` é proprietário (`owner`, acesso total) e `admin@edyk.com` é administrador parcial (`admin`, sem acesso ao banco).
+- **Distinção de usuários:** `-----` é proprietário (`owner`, acesso total) e `----` é administrador parcial (`admin`, sem acesso ao banco).
 - Administrador parcial não vê abas de Usuários/Supabase/Configurações, não cria itens e não faz chamadas `/rest/v1/*`; alterações ficam locais.
 - RLS reforçado com `current_role()`, `is_owner()` e `is_admin()` (sinônimo de `is_owner()`); `admin` é negado até na leitura de `products`/`users`.
 - Testes reescritos para validar proprietário, administrador negado e visitante anônimo (17 etapas).
